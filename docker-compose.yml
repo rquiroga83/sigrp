@@ -4,8 +4,8 @@ services:
     image: postgres:15-alpine
     container_name: sigrp_postgres
     environment:
-      - POSTGRES_USER=sigrp_user
-      - POSTGRES_PASSWORD=sigrp_password
+      - POSTGRES_USER=sigrp
+      - POSTGRES_PASSWORD=sigrp
       - POSTGRES_DB=sigrp_db
     ports:
       - "5433:5432"
