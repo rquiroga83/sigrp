@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Asignar Recursos - {{ project.name }} - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb y Header -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'projects:list' %}">Proyectos</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'projects:detail' project.pk %}">{{ project.code }}</a></li>
+            <li class="breadcrumb-item active">Asignar Recursos</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="h3 mb-2">
+                        <i class="bi bi-people me-2"></i>Asignar Recursos
+                    </h1>
+                    <p class="text-muted mb-0">
+                        <strong>{{ project.code }} - {{ project.name }}</strong>
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'projects:detail' project.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Información del Proyecto -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Tareas Totales</h6>
+                    <h3 class="mb-0">{{ project.tasks.count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Tareas Sin Asignar</h6>
+                    <h3 class="mb-0 text-warning">
+                        {{ unassigned_tasks_count }}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Recursos Disponibles</h6>
+                    <h3 class="mb-0 text-success">{{ resources.count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de Asignación -->
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Tareas por Etapa -->
+        {% for stage, stage_tasks in stages_with_tasks %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-folder me-2"></i>{{ stage.name }}
+                    <span class="badge bg-secondary ms-2">{{ stage_tasks|length }} tarea{{ stage_tasks|length|pluralize }}</span>
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 35%">Tarea</th>
+                                <th style="width: 15%">Rol Requerido</th>
+                                <th style="width: 10%">Horas Est.</th>
+                                <th style="width: 10%">Estado</th>
+                                <th style="width: 30%">Asignar a</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in stage_tasks %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ task.title }}</div>
+                                    {% if task.priority == 'critical' %}
+                                        <span class="badge bg-danger">Crítico</span>
+                                    {% elif task.priority == 'high' %}
+                                        <span class="badge bg-warning">Alta</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ task.required_role.name }}</span>
+                                    <small class="text-muted d-block">${{ task.required_role.standard_rate }}/h</small>
+                                </td>
+                                <td>{{ task.estimated_hours }}h</td>
+                                <td>
+                                    {% if task.status == 'completed' %}
+                                        <span class="badge bg-success">Completado</span>
+                                    {% elif task.status == 'in_progress' %}
+                                        <span class="badge bg-info">En Progreso</span>
+                                    {% elif task.status == 'blocked' %}
+                                        <span class="badge bg-danger">Bloqueado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <select name="task_{{ task.pk }}" class="form-select form-select-sm">
+                                        <option value="none" {% if not task.assigned_resource %}selected{% endif %}>Sin asignar</option>
+                                        {% regroup resources by primary_role as resources_by_role %}
+                                        {% for role_group in resources_by_role %}
+                                            <optgroup label="{{ role_group.grouper.name }}">
+                                                {% for resource in role_group.list %}
+                                                <option value="{{ resource.pk }}" 
+                                                        {% if task.assigned_resource.pk == resource.pk %}selected{% endif %}>
+                                                    {{ resource.full_name }} 
+                                                    (${{ resource.internal_cost }}/h - {{ resource.availability_percentage }}% disponible)
+                                                </option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                    {% if task.assigned_resource %}
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Costo: ${{ task.assigned_resource.internal_cost }}/h
+                                    </small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Tareas sin Etapa -->
+        {% if orphan_tasks %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-card-list me-2"></i>Tareas sin Etapa
+                    <span class="badge bg-secondary ms-2">{{ orphan_tasks|length }} tarea{{ orphan_tasks|length|pluralize }}</span>
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 35%">Tarea</th>
+                                <th style="width: 15%">Rol Requerido</th>
+                                <th style="width: 10%">Horas Est.</th>
+                                <th style="width: 10%">Estado</th>
+                                <th style="width: 30%">Asignar a</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in orphan_tasks %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ task.title }}</div>
+                                    {% if task.priority == 'critical' %}
+                                        <span class="badge bg-danger">Crítico</span>
+                                    {% elif task.priority == 'high' %}
+                                        <span class="badge bg-warning">Alta</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ task.required_role.name }}</span>
+                                    <small class="text-muted d-block">${{ task.required_role.standard_rate }}/h</small>
+                                </td>
+                                <td>{{ task.estimated_hours }}h</td>
+                                <td>
+                                    {% if task.status == 'completed' %}
+                                        <span class="badge bg-success">Completado</span>
+                                    {% elif task.status == 'in_progress' %}
+                                        <span class="badge bg-info">En Progreso</span>
+                                    {% elif task.status == 'blocked' %}
+                                        <span class="badge bg-danger">Bloqueado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <select name="task_{{ task.pk }}" class="form-select form-select-sm">
+                                        <option value="none" {% if not task.assigned_resource %}selected{% endif %}>Sin asignar</option>
+                                        {% regroup resources by primary_role as resources_by_role %}
+                                        {% for role_group in resources_by_role %}
+                                            <optgroup label="{{ role_group.grouper.name }}">
+                                                {% for resource in role_group.list %}
+                                                <option value="{{ resource.pk }}" 
+                                                        {% if task.assigned_resource.pk == resource.pk %}selected{% endif %}>
+                                                    {{ resource.full_name }} 
+                                                    (${{ resource.internal_cost }}/h - {{ resource.availability_percentage }}% disponible)
+                                                </option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                    {% if task.assigned_resource %}
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Costo: ${{ task.assigned_resource.internal_cost }}/h
+                                    </small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Botones de Acción -->
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'projects:detail' project.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg me-2"></i>Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-2"></i>Guardar Asignaciones
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Ayuda -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h6 class="alert-heading">
+                    <i class="bi bi-lightbulb me-2"></i>Cómo Asignar Recursos
+                </h6>
+                <ul class="mb-0">
+                    <li>Selecciona un recurso disponible para cada tarea en los dropdowns</li>
+                    <li>Los recursos están agrupados por rol para facilitar la selección</li>
+                    <li>Se muestra el costo interno por hora y disponibilidad de cada recurso</li>
+                    <li>Las tareas críticas y de alta prioridad están marcadas con badges</li>
+                    <li>Puedes dejar tareas sin asignar seleccionando "Sin asignar"</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

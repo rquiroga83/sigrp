@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ project.name }} - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb y Header -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'projects:list' %}">Proyectos</a></li>
+            <li class="breadcrumb-item active">{{ project.code }}</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-secondary me-2">{{ project.code }}</span>
+                        {% if project.project_type == 'fixed' %}
+                            <span class="badge bg-primary me-2">Fixed Price</span>
+                        {% elif project.project_type == 't_and_m' %}
+                            <span class="badge bg-info me-2">Time & Materials</span>
+                        {% else %}
+                            <span class="badge bg-warning me-2">Hybrid</span>
+                        {% endif %}
+                        {% if project.status == 'active' %}
+                            <span class="badge bg-success">Activo</span>
+                        {% elif project.status == 'planning' %}
+                            <span class="badge bg-warning">Planificación</span>
+                        {% elif project.status == 'completed' %}
+                            <span class="badge bg-info">Completado</span>
+                        {% endif %}
+                    </div>
+                    <h1 class="h3 mb-2">{{ project.name }}</h1>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-building me-2"></i>{{ project.client_name }}
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'projects:list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left me-2"></i>Volver
+                    </a>
+                    <a href="{% url 'projects:assign_resources' project.pk %}" class="btn btn-outline-success me-2">
+                        <i class="bi bi-people me-2"></i>Asignar Recursos
+                    </a>
+                    <a href="/admin/projects/project/{{ project.pk }}/change/" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-2"></i>Editar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Financieras -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Horas Registradas</h6>
+                    <h3 class="mb-0">{{ project.total_logged_hours|floatformat:1 }}h</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Costo Total</h6>
+                    <h3 class="mb-0">${{ project.total_cost|floatformat:2 }}</h3>
+                    <small class="text-muted">Costo interno real</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Facturable</h6>
+                    <h3 class="mb-0 text-success">${{ project.total_billable|floatformat:2 }}</h3>
+                    <small class="text-muted">Facturación al cliente</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm {% if project.is_over_budget %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Margen de Ganancia</h6>
+                    <h3 class="mb-0 {% if project.profit_margin >= project.profit_margin_target %}text-success{% elif project.profit_margin >= 15 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ project.profit_margin|floatformat:1 }}%
+                    </h3>
+                    <small class="text-muted">Objetivo: {{ project.profit_margin_target }}%</small>
+                    {% if project.is_over_budget %}
+                    <div class="mt-2">
+                        <span class="badge bg-danger">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Sobre presupuesto
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progreso del Proyecto -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Progreso del Proyecto</h5>
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar {% if project.completion_percentage >= 100 %}bg-success{% elif project.completion_percentage >= 75 %}bg-info{% elif project.completion_percentage >= 50 %}bg-warning{% else %}bg-secondary{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ project.completion_percentage }}%"
+                             aria-valuenow="{{ project.completion_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            <span class="fs-6">{{ project.completion_percentage|floatformat:1 }}% Completado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Descripción -->
+    {% if project.description %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Descripción</h5>
+                    <p class="mb-0">{{ project.description|linebreaks }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Etapas del Proyecto -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-check me-2"></i>Etapas del Proyecto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if stages %}
+                    <div class="accordion" id="stagesAccordion">
+                        {% for stage in stages %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#stage{{ stage.pk }}"
+                                        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                        <div>
+                                            <strong>{{ stage.name }}</strong>
+                                            {% if stage.status == 'in_progress' %}
+                                                <span class="badge bg-success ms-2">En Progreso</span>
+                                            {% elif stage.status == 'completed' %}
+                                                <span class="badge bg-info ms-2">Completado</span>
+                                            {% elif stage.status == 'planned' %}
+                                                <span class="badge bg-warning ms-2">Planificado</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-muted small">
+                                            {{ stage.tasks.count }} tarea{{ stage.tasks.count|pluralize }} | 
+                                            {{ stage.progress_percentage|floatformat:0 }}% progreso
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="stage{{ stage.pk }}" 
+                                 class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
+                                 data-bs-parent="#stagesAccordion">
+                                <div class="accordion-body">
+                                    {% if stage.description %}
+                                    <p class="text-muted">{{ stage.description }}</p>
+                                    {% endif %}
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Horas Planificadas</small>
+                                            <div class="fw-semibold">{{ stage.total_planned_hours|floatformat:1 }}h</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Horas Registradas</small>
+                                            <div class="fw-semibold">{{ stage.total_logged_hours|floatformat:1 }}h</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Costo Real</small>
+                                            <div class="fw-semibold">${{ stage.actual_cost|floatformat:2 }}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Valor Planificado</small>
+                                            <div class="fw-semibold text-success">${{ stage.planned_value|floatformat:2 }}</div>
+                                        </div>
+                                    </div>
+
+                                    {% if stage.tasks.all %}
+                                    <h6 class="mt-3 mb-2">Tareas:</h6>
+                                    <div class="list-group">
+                                        {% for task in stage.tasks.all %}
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ task.title }}</h6>
+                                                    <small class="text-muted">
+                                                        Rol: {{ task.required_role.name }} | 
+                                                        {% if task.assigned_resource %}
+                                                            Asignado a: {{ task.assigned_resource.full_name }}
+                                                        {% else %}
+                                                            Sin asignar
+                                                        {% endif %}
+                                                    </small>
+                                                </div>
+                                                <div class="text-end ms-3">
+                                                    {% if task.status == 'completed' %}
+                                                        <span class="badge bg-success">Completado</span>
+                                                    {% elif task.status == 'in_progress' %}
+                                                        <span class="badge bg-primary">En Progreso</span>
+                                                    {% elif task.status == 'in_review' %}
+                                                        <span class="badge bg-info">En Revisión</span>
+                                                    {% elif task.status == 'blocked' %}
+                                                        <span class="badge bg-danger">Bloqueado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                                    {% endif %}
+                                                    <div class="small mt-1">
+                                                        {{ task.completion_percentage|floatformat:0 }}% 
+                                                        ({{ task.logged_hours }}/{{ task.estimated_hours }}h)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted mb-0">No hay tareas en esta etapa</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No hay etapas definidas para este proyecto</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tareas sin Etapa -->
+    {% if tasks %}
+    {% with orphan_tasks=tasks|dictsort:"stage" %}
+    {% if orphan_tasks.0.stage == None %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-card-list me-2"></i>Tareas sin Etapa
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Rol Requerido</th>
+                                    <th>Recurso Asignado</th>
+                                    <th>Estado</th>
+                                    <th class="text-end">Est. / Reg.</th>
+                                    <th class="text-end">Progreso</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in orphan_tasks %}
+                                {% if task.stage == None %}
+                                <tr>
+                                    <td>{{ task.title }}</td>
+                                    <td>{{ task.required_role.name }}</td>
+                                    <td>
+                                        {% if task.assigned_resource %}
+                                            {{ task.assigned_resource.full_name }}
+                                        {% else %}
+                                            <span class="text-muted">Sin asignar</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.status == 'completed' %}
+                                            <span class="badge bg-success">Completado</span>
+                                        {% elif task.status == 'in_progress' %}
+                                            <span class="badge bg-primary">En Progreso</span>
+                                        {% elif task.status == 'blocked' %}
+                                            <span class="badge bg-danger">Bloqueado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ task.estimated_hours }}h / {{ task.logged_hours }}h</td>
+                                    <td class="text-end">
+                                        <div class="progress" style="height: 20px; min-width: 60px;">
+                                            <div class="progress-bar" 
+                                                 style="width: {{ task.completion_percentage }}%">
+                                                {{ task.completion_percentage|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% endif %}
+
+    <!-- Información Financiera Detallada -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-currency-dollar me-2"></i>Configuración Financiera
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if project.project_type == 'fixed' %}
+                    <div class="mb-3">
+                        <strong>Precio Fijo Acordado:</strong>
+                        <div class="text-success fs-4">${{ project.fixed_price|floatformat:2 }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Límite de Presupuesto:</strong>
+                        <div class="fs-5">${{ project.budget_limit|floatformat:2 }}</div>
+                    </div>
+                    <div>
+                        <strong>Variación de Presupuesto:</strong>
+                        <div class="{% if project.budget_variance >= 0 %}text-success{% else %}text-danger{% endif %} fs-5">
+                            ${{ project.budget_variance|floatformat:2 }}
+                        </div>
+                    </div>
+                    {% elif project.project_type == 't_and_m' %}
+                    <div class="mb-3">
+                        <strong>Tarifa por Hora:</strong>
+                        <div class="text-success fs-4">${{ project.hourly_rate|floatformat:2 }}/h</div>
+                    </div>
+                    {% if project.max_budget %}
+                    <div class="mb-3">
+                        <strong>Presupuesto Máximo:</strong>
+                        <div class="fs-5">${{ project.max_budget|floatformat:2 }}</div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-range me-2"></i>Fechas del Proyecto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Fecha de Inicio:</strong>
+                        <div class="fs-6">
+                            {% if project.start_date %}
+                                {{ project.start_date|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-muted">No definida</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Fecha de Fin Estimada:</strong>
+                        <div class="fs-6">
+                            {% if project.end_date %}
+                                {{ project.end_date|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-muted">No definida</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if project.actual_end_date %}
+                    <div>
+                        <strong>Fecha de Fin Real:</strong>
+                        <div class="fs-6">{{ project.actual_end_date|date:"d/m/Y" }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

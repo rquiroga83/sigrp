@@ -17,22 +17,22 @@ class Role(AuditableModel):
     """
     
     SENIORITY_CHOICES = [
+        ('entry', 'Entry Level'),
         ('junior', 'Junior'),
         ('mid', 'Mid-Level'),
         ('senior', 'Senior'),
-        ('lead', 'Tech Lead'),
-        ('architect', 'Architect'),
+        ('lead', 'Lead'),
         ('principal', 'Principal'),
     ]
     
     CATEGORY_CHOICES = [
-        ('engineering', 'Engineering'),
-        ('design', 'Design'),
-        ('product', 'Product Management'),
-        ('qa', 'Quality Assurance'),
-        ('devops', 'DevOps'),
-        ('data', 'Data Science'),
         ('management', 'Management'),
+        ('technical', 'Technical'),
+        ('business_analysis', 'Business Analysis'),
+        ('qa', 'QA/Testing'),
+        ('design', 'Design'),
+        ('operations', 'Operations'),
+        ('other', 'Other'),
     ]
     
     # Información del rol
@@ -108,6 +108,14 @@ class Role(AuditableModel):
 
     def __str__(self):
         return f"{self.name} ({self.code}) - ${self.standard_rate}/hr"
+    
+    def get_display_name(self) -> str:
+        """Retorna nombre completo del rol: 'Senior Developer (SR-DEV-001)'."""
+        return f"{self.name} ({self.code})"
+    
+    def calculate_cost_for_hours(self, hours: Decimal) -> Decimal:
+        """Calcula el costo estimado: standard_rate × hours."""
+        return self.standard_rate * hours
 
     def get_seniority_multiplier(self) -> Decimal:
         """Retorna multiplicador según seniority (para cálculos futuros)."""
@@ -137,14 +145,6 @@ class Resource(AuditableModel):
         ('unavailable', 'No Disponible'),
     ]
     
-    # Relación con usuario del sistema
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='resource_profile',
-        verbose_name="Usuario del Sistema"
-    )
-    
     # --- RELACIÓN CON ROL ---
     primary_role = models.ForeignKey(
         Role,
@@ -161,9 +161,16 @@ class Resource(AuditableModel):
         verbose_name="ID de Empleado"
     )
     
-    full_name = models.CharField(
-        max_length=255,
-        verbose_name="Nombre Completo"
+    first_name = models.CharField(
+        max_length=100,
+        verbose_name="Nombre",
+        default=''
+    )
+    
+    last_name = models.CharField(
+        max_length=100,
+        verbose_name="Apellido",
+        default=''
     )
     
     email = models.EmailField(
@@ -188,16 +195,18 @@ class Resource(AuditableModel):
     
     # Datos de contratación
     hire_date = models.DateField(
+        null=True,
+        blank=True,
         verbose_name="Fecha de Contratación"
     )
     
     # Vector de habilidades real (JSONB)
-    # Estructura: {"python": 5, "django": 4, "react": 3, "aws": 4}
+    # Estructura: [{"name": "Python", "level": 5}, {"name": "Django", "level": 4}]
     # Escala: 1-5 donde 5 es experto
     skills_vector = models.JSONField(
-        default=dict,
+        default=list,
         verbose_name="Vector de Habilidades",
-        help_text="Diccionario de habilidades con nivel de competencia (1-5)"
+        help_text="Lista de habilidades con nivel de competencia (1-5)"
     )
     
     # Certificaciones
@@ -270,7 +279,7 @@ class Resource(AuditableModel):
     class Meta:
         verbose_name = "Recurso"
         verbose_name_plural = "Recursos"
-        ordering = ['full_name']
+        ordering = ['last_name', 'first_name']
         indexes = [
             models.Index(fields=['employee_id']),
             models.Index(fields=['email']),
@@ -281,6 +290,23 @@ class Resource(AuditableModel):
 
     def __str__(self):
         return f"{self.full_name} ({self.employee_id}) - {self.primary_role.name}"
+    
+    @property
+    def full_name(self) -> str:
+        """Retorna nombre completo."""
+        return f"{self.first_name} {self.last_name}"
+    
+    @property
+    def effective_rate(self) -> Decimal:
+        """Retorna el standard_rate del primary_role."""
+        return self.primary_role.standard_rate
+    
+    @property
+    def cost_vs_rate_ratio(self) -> float:
+        """Ratio entre costo interno y tarifa de facturación (maneja división por cero)."""
+        if self.primary_role.standard_rate > 0:
+            return float((self.internal_cost / self.primary_role.standard_rate) * 100)
+        return 0.0
 
     def get_effective_rate(self) -> Decimal:
         """Retorna la tarifa efectiva (del rol principal)."""
@@ -288,13 +314,26 @@ class Resource(AuditableModel):
 
     def get_skill_level(self, skill_name: str) -> int:
         """Obtiene el nivel de una habilidad específica."""
-        return self.skills_vector.get(skill_name.lower(), 0)
+        for skill in self.skills_vector:
+            if skill.get('name', '').lower() == skill_name.lower():
+                return skill.get('level', 0)
+        return 0
 
     def add_skill(self, skill_name: str, level: int):
         """Agrega o actualiza una habilidad."""
-        if 1 <= level <= 5:
-            self.skills_vector[skill_name.lower()] = level
-            self.save(update_fields=['skills_vector', 'updated_at'])
+        if not (1 <= level <= 5):
+            return
+        
+        # Buscar si ya existe
+        for skill in self.skills_vector:
+            if skill.get('name', '').lower() == skill_name.lower():
+                skill['level'] = level
+                self.save(update_fields=['skills_vector', 'updated_at'])
+                return
+        
+        # Si no existe, agregar
+        self.skills_vector.append({"name": skill_name, "level": level})
+        self.save(update_fields=['skills_vector', 'updated_at'])
 
     def get_total_skills(self) -> int:
         """Retorna el número total de habilidades."""
@@ -304,7 +343,8 @@ class Resource(AuditableModel):
         """Calcula el nivel promedio de habilidades."""
         if not self.skills_vector:
             return 0.0
-        return sum(self.skills_vector.values()) / len(self.skills_vector)
+        total = sum(skill.get('level', 0) for skill in self.skills_vector)
+        return total / len(self.skills_vector)
 
     def is_available_for_allocation(self, required_percentage: int = 50) -> bool:
         """Verifica si el recurso tiene suficiente disponibilidad para asignación."""
@@ -319,7 +359,7 @@ class Resource(AuditableModel):
         return self.internal_cost * hours
 
     def get_cost_vs_rate_ratio(self) -> float:
-        """Retorna la relación costo/tarifa (útil para análisis de margen)."""
+        """Retorna la relación costo/tarifa en porcentaje (útil para análisis de margen)."""
         if self.primary_role.standard_rate > 0:
-            return float(self.internal_cost / self.primary_role.standard_rate)
+            return float((self.internal_cost / self.primary_role.standard_rate) * 100)
         return 0.0

@@ -1,27 +1,33 @@
 """
-Modelos para gestión de proyectos (Fixed Price vs Time & Material).
+Modelos para la gestión de proyectos con lógica financiera dual.
+Implementa la separación entre Planificado (Role-based) y Real (Resource-based).
 """
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 from apps.core.models import AuditableModel
+from apps.resources.models import Role, Resource
 
 
 class Project(AuditableModel):
     """
-    Modelo de Proyecto con soporte para Fixed Price y Time & Material.
+    Proyecto con arquitectura financiera dual: Fixed Price vs Time & Materials.
+    
+    Fixed Price: Budget fijo, riesgo para el proveedor.
+    Time & Materials: Facturación por hora, riesgo para el cliente.
     """
     
     PROJECT_TYPE_CHOICES = [
-        ('fixed', 'Precio Fijo'),
-        ('t_and_m', 'Time & Material'),
-        ('hybrid', 'Híbrido'),
+        ('fixed', 'Fixed Price'),
+        ('t_and_m', 'Time & Materials'),
+        ('hybrid', 'Hybrid'),
     ]
     
     STATUS_CHOICES = [
+        ('draft', 'Borrador'),
         ('planning', 'Planificación'),
-        ('active', 'Activo'),
+        ('active', 'En Ejecución'),
         ('on_hold', 'En Pausa'),
         ('completed', 'Completado'),
         ('cancelled', 'Cancelado'),
@@ -36,19 +42,28 @@ class Project(AuditableModel):
     
     # Información básica
     code = models.CharField(
-        max_length=20, 
-        unique=True, 
-        verbose_name="Código de Proyecto"
+        max_length=20,
+        unique=True,
+        verbose_name="Código del Proyecto",
+        help_text="Ej: PRJ-2026-001"
     )
-    name = models.CharField(max_length=255, verbose_name="Nombre del Proyecto")
-    description = models.TextField(verbose_name="Descripción")
     
-    # Cliente
-    client_name = models.CharField(max_length=255, verbose_name="Cliente")
-    client_contact = models.CharField(max_length=255, blank=True, verbose_name="Contacto del Cliente")
-    client_email = models.EmailField(blank=True, verbose_name="Email del Cliente")
+    name = models.CharField(
+        max_length=200,
+        verbose_name="Nombre del Proyecto"
+    )
     
-    # Tipo de proyecto
+    description = models.TextField(
+        blank=True,
+        verbose_name="Descripción"
+    )
+    
+    client_name = models.CharField(
+        max_length=200,
+        verbose_name="Nombre del Cliente"
+    )
+    
+    # Tipo de proyecto y estado
     project_type = models.CharField(
         max_length=20,
         choices=PROJECT_TYPE_CHOICES,
@@ -56,18 +71,13 @@ class Project(AuditableModel):
         verbose_name="Tipo de Proyecto"
     )
     
-    # Fechas
-    start_date = models.DateField(verbose_name="Fecha de Inicio")
-    planned_end_date = models.DateField(verbose_name="Fecha Planeada de Fin")
-    actual_end_date = models.DateField(null=True, blank=True, verbose_name="Fecha Real de Fin")
-    
-    # Estado y prioridad
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='planning',
+        default='draft',
         verbose_name="Estado"
     )
+    
     priority = models.CharField(
         max_length=20,
         choices=PRIORITY_CHOICES,
@@ -75,17 +85,9 @@ class Project(AuditableModel):
         verbose_name="Prioridad"
     )
     
-    # --- CAMPOS PARA PRECIO FIJO ---
-    budget_limit = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Presupuesto Límite (USD)",
-        help_text="Para proyectos de precio fijo: límite máximo del presupuesto"
-    )
+    # --- CONFIGURACIÓN FINANCIERA ---
     
+    # Fixed Price: Precio acordado con el cliente
     fixed_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -93,20 +95,21 @@ class Project(AuditableModel):
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name="Precio Fijo Acordado (USD)",
-        help_text="Precio acordado con el cliente para proyectos fixed"
+        help_text="Solo para proyectos Fixed Price"
     )
     
-    estimated_hours = models.DecimalField(
-        max_digits=10,
+    # Fixed Price: Presupuesto interno límite
+    budget_limit = models.DecimalField(
+        max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Horas Estimadas",
-        help_text="Estimación interna de horas para proyectos fixed"
+        verbose_name="Límite de Presupuesto Interno (USD)",
+        help_text="Costo máximo permitido para el proyecto"
     )
     
-    # --- CAMPOS PARA TIME & MATERIAL ---
+    # Time & Materials: Tarifa por hora para el cliente
     hourly_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -114,186 +117,220 @@ class Project(AuditableModel):
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name="Tarifa por Hora (USD)",
-        help_text="Tarifa cobrada al cliente por hora trabajada en proyectos T&M"
+        help_text="Tarifa aplicada al cliente en proyectos T&M"
     )
     
-    max_hours_cap = models.DecimalField(
-        max_digits=10,
+    # Time & Materials: Presupuesto máximo estimado
+    max_budget = models.DecimalField(
+        max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Tope Máximo de Horas",
-        help_text="Límite de horas facturables para proyectos T&M (opcional)"
+        verbose_name="Presupuesto Máximo Estimado (USD)",
+        help_text="Estimación de techo para proyectos T&M"
     )
     
-    # --- MÉTRICAS ACTUALES ---
-    actual_hours_logged = models.DecimalField(
-        max_digits=10,
+    # Margen de ganancia objetivo
+    profit_margin_target = models.DecimalField(
+        max_digits=5,
         decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Horas Registradas",
-        help_text="Total de horas trabajadas registradas"
+        default=Decimal('30.00'),
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))],
+        verbose_name="Margen de Ganancia Objetivo (%)",
+        help_text="Porcentaje de margen esperado"
     )
     
-    actual_cost = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Costo Real (USD)",
-        help_text="Costo interno acumulado (suma de costos de recursos)"
+    # Fechas
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Inicio"
     )
     
-    revenue = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Ingresos Facturados (USD)",
-        help_text="Total facturado al cliente"
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Fin Estimada"
     )
     
-    # --- SALUD Y MÉTRICAS DEL PROYECTO ---
-    health_score = models.IntegerField(
-        default=100,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        verbose_name="Score de Salud",
-        help_text="Indicador de salud del proyecto (0-100)"
+    actual_end_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Fin Real"
     )
     
-    risk_level = models.CharField(
-        max_length=20,
-        choices=[('low', 'Bajo'), ('medium', 'Medio'), ('high', 'Alto'), ('critical', 'Crítico')],
-        default='low',
-        verbose_name="Nivel de Riesgo"
-    )
-    
-    # Tecnologías y equipo
-    technologies = models.JSONField(
+    # Metadatos
+    tags = models.JSONField(
         default=list,
-        verbose_name="Tecnologías Utilizadas",
-        help_text="Lista de tecnologías del proyecto"
+        blank=True,
+        verbose_name="Etiquetas",
+        help_text="Lista de etiquetas para categorización"
     )
     
-    team_size = models.IntegerField(
-        default=0,
-        validators=[MinValueValidator(0)],
-        verbose_name="Tamaño del Equipo"
+    notes = models.TextField(
+        blank=True,
+        verbose_name="Notas Internas"
     )
     
-    # Notas y documentación
-    notes = models.TextField(blank=True, verbose_name="Notas")
-    repository_url = models.URLField(blank=True, verbose_name="URL del Repositorio")
-    documentation_url = models.URLField(blank=True, verbose_name="URL de Documentación")
-    
-    # Estado activo
-    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Activo"
+    )
 
     class Meta:
         verbose_name = "Proyecto"
         verbose_name_plural = "Proyectos"
-        ordering = ['-start_date']
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['code']),
             models.Index(fields=['status', 'is_active']),
             models.Index(fields=['project_type']),
-            models.Index(fields=['start_date', 'planned_end_date']),
+            models.Index(fields=['start_date', 'end_date']),
         ]
 
     def __str__(self):
-        return f"[{self.code}] {self.name}"
-
-    def get_budget_consumption_percentage(self) -> float:
+        return f"{self.code} - {self.name}"
+    
+    def clean(self):
+        """Validaciones personalizadas."""
+        super().clean()
+        
+        # Validar configuración según tipo de proyecto
+        if self.project_type == 'fixed':
+            if not self.fixed_price:
+                raise ValidationError({
+                    'fixed_price': 'Fixed Price projects must have a fixed_price defined.'
+                })
+            if not self.budget_limit:
+                raise ValidationError({
+                    'budget_limit': 'Fixed Price projects should have a budget_limit.'
+                })
+        
+        elif self.project_type == 't_and_m':
+            if not self.hourly_rate and not self.max_budget:
+                raise ValidationError(
+                    'Time & Materials projects should have either hourly_rate or max_budget defined.'
+                )
+        
+        # Validar fechas
+        if self.start_date and self.end_date:
+            if self.end_date < self.start_date:
+                raise ValidationError({
+                    'end_date': 'End date cannot be before start date.'
+                })
+    
+    # --- PROPIEDADES CALCULADAS (MÉTRICAS FINANCIERAS) ---
+    
+    @property
+    def total_logged_hours(self) -> Decimal:
+        """Total de horas registradas en TimeLog y TimeEntry."""
+        from django.db.models import Sum
+        
+        # Horas de TimeLog (asociadas a tareas del proyecto)
+        timelog_hours = TimeLog.objects.filter(task__project=self).aggregate(
+            total=Sum('hours')
+        )['total'] or Decimal('0.00')
+        
+        # Horas de TimeEntry (asociadas directamente al proyecto)
+        timeentry_hours = self.time_entries.aggregate(
+            total=Sum('hours')
+        )['total'] or Decimal('0.00')
+        
+        return timelog_hours + timeentry_hours
+    
+    @property
+    def total_cost(self) -> Decimal:
         """
-        Calcula el % de consumo del presupuesto.
-        Para Fixed: actual_cost vs budget_limit
-        Para T&M: actual_hours vs max_hours_cap (si existe)
+        Costo interno REAL total del proyecto.
+        Suma de todos los costos de TimeLog y TimeEntry (basados en Resource.internal_cost).
         """
-        if self.project_type == 'fixed' and self.budget_limit:
-            if self.budget_limit > 0:
-                return float((self.actual_cost / self.budget_limit) * 100)
-        elif self.project_type == 't_and_m' and self.max_hours_cap:
-            if self.max_hours_cap > 0:
-                return float((self.actual_hours_logged / self.max_hours_cap) * 100)
-        return 0.0
-
-    def get_profitability(self) -> Decimal:
+        from django.db.models import Sum
+        
+        # Costos de TimeLog (a través de las tareas del proyecto)
+        timelog_cost = TimeLog.objects.filter(task__project=self).aggregate(
+            total=Sum('cost')
+        )['total'] or Decimal('0.00')
+        
+        # Costos de TimeEntry
+        timeentry_cost = self.time_entries.aggregate(
+            total=Sum('cost')
+        )['total'] or Decimal('0.00')
+        
+        return timelog_cost + timeentry_cost
+    
+    @property
+    def total_billable(self) -> Decimal:
         """
-        Calcula la rentabilidad del proyecto.
-        Profit = Revenue - Actual Cost
+        Monto FACTURABLE total al cliente.
+        Suma de todos los billable_amount de TimeLog y TimeEntry (basados en Role.standard_rate).
         """
-        return self.revenue - self.actual_cost
-
-    def get_profit_margin_percentage(self) -> float:
+        from django.db.models import Sum
+        
+        # Monto facturable de TimeLog (a través de las tareas del proyecto)
+        timelog_billable = TimeLog.objects.filter(task__project=self).aggregate(
+            total=Sum('billable_amount')
+        )['total'] or Decimal('0.00')
+        
+        # Monto facturable de TimeEntry
+        timeentry_billable = self.time_entries.aggregate(
+            total=Sum('billable_amount')
+        )['total'] or Decimal('0.00')
+        
+        return timelog_billable + timeentry_billable
+    
+    @property
+    def profit_margin(self) -> float:
         """
-        Calcula el margen de ganancia en porcentaje.
-        Margin = (Revenue - Cost) / Revenue * 100
+        Margen de ganancia real del proyecto.
+        Fórmula: ((total_billable - total_cost) / total_billable) * 100
         """
-        if self.revenue > 0:
-            profit = self.get_profitability()
-            return float((profit / self.revenue) * 100)
-        return 0.0
-
+        if self.total_billable == 0:
+            return 0.0
+        
+        return float(((self.total_billable - self.total_cost) / self.total_billable) * 100)
+    
+    @property
     def is_over_budget(self) -> bool:
-        """Verifica si el proyecto está sobre presupuesto."""
+        """Verifica si el proyecto excedió el presupuesto."""
         if self.project_type == 'fixed' and self.budget_limit:
-            return self.actual_cost > self.budget_limit
+            return self.total_cost > self.budget_limit
+        elif self.project_type == 't_and_m' and self.max_budget:
+            return self.total_cost > self.max_budget
         return False
-
-    def is_over_hours_cap(self) -> bool:
-        """Verifica si se superó el tope de horas en T&M."""
-        if self.project_type == 't_and_m' and self.max_hours_cap:
-            return self.actual_hours_logged > self.max_hours_cap
-        return False
-
-    def get_estimated_revenue(self) -> Decimal:
-        """
-        Estima el ingreso del proyecto.
-        Fixed: fixed_price
-        T&M: actual_hours * hourly_rate
-        """
-        if self.project_type == 'fixed' and self.fixed_price:
-            return self.fixed_price
-        elif self.project_type == 't_and_m' and self.hourly_rate:
-            return self.actual_hours_logged * self.hourly_rate
+    
+    @property
+    def budget_variance(self) -> Decimal:
+        """Diferencia entre presupuesto y costo real."""
+        budget = self.budget_limit if self.project_type == 'fixed' else self.max_budget
+        if budget:
+            return budget - self.total_cost
         return Decimal('0.00')
-
-    def calculate_completion_percentage(self) -> float:
-        """
-        Calcula el % de avance basado en horas.
-        Fixed: actual_hours / estimated_hours
-        T&M: basado en fechas
-        """
-        if self.project_type == 'fixed' and self.estimated_hours:
-            if self.estimated_hours > 0:
-                return float((self.actual_hours_logged / self.estimated_hours) * 100)
+    
+    @property
+    def completion_percentage(self) -> float:
+        """Porcentaje de completitud basado en tareas."""
+        total_tasks = self.tasks.count()
+        if total_tasks == 0:
+            return 0.0
         
-        # Fallback: calcular por fechas
-        total_days = (self.planned_end_date - self.start_date).days
-        if total_days > 0:
-            elapsed_days = (timezone.now().date() - self.start_date).days
-            return min(float((elapsed_days / total_days) * 100), 100.0)
-        
-        return 0.0
+        completed_tasks = self.tasks.filter(status='completed').count()
+        return (completed_tasks / total_tasks) * 100
 
 
 class Stage(AuditableModel):
     """
-    Etapa de Proyecto (ej. Discovery, Development, Testing, Deployment).
-    Los proyectos se dividen en etapas para mejor organización.
+    Etapa del proyecto (Sprint, Fase, Milestone).
+    Agrupa tareas lógicamente.
     """
     
     STATUS_CHOICES = [
-        ('not_started', 'No Iniciada'),
+        ('planned', 'Planificado'),
         ('in_progress', 'En Progreso'),
-        ('completed', 'Completada'),
+        ('completed', 'Completado'),
         ('on_hold', 'En Pausa'),
-        ('cancelled', 'Cancelada'),
     ]
     
-    # Relación con proyecto
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
@@ -301,10 +338,10 @@ class Stage(AuditableModel):
         verbose_name="Proyecto"
     )
     
-    # Información de la etapa
     name = models.CharField(
-        max_length=100,
-        verbose_name="Nombre de la Etapa"
+        max_length=200,
+        verbose_name="Nombre de la Etapa",
+        help_text="Ej: Sprint 1, Fase de Diseño"
     )
     
     description = models.TextField(
@@ -318,103 +355,98 @@ class Stage(AuditableModel):
         help_text="Orden de ejecución de la etapa"
     )
     
-    # Fechas
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='planned',
+        verbose_name="Estado"
+    )
+    
     start_date = models.DateField(
         null=True,
         blank=True,
         verbose_name="Fecha de Inicio"
     )
     
-    planned_end_date = models.DateField(
+    end_date = models.DateField(
         null=True,
         blank=True,
-        verbose_name="Fecha Planeada de Fin"
+        verbose_name="Fecha de Fin"
     )
     
-    actual_end_date = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name="Fecha Real de Fin"
-    )
-    
-    # Estado
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='not_started',
-        verbose_name="Estado"
-    )
-    
-    # Presupuesto de la etapa (opcional)
-    estimated_hours_total = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Horas Estimadas Totales",
-        help_text="Suma de horas estimadas de todas las tareas"
-    )
-    
-    # Notas
     notes = models.TextField(
         blank=True,
         verbose_name="Notas"
-    )
-    
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="Activa"
     )
 
     class Meta:
         verbose_name = "Etapa"
         verbose_name_plural = "Etapas"
-        ordering = ['project', 'order', 'start_date']
+        ordering = ['project', 'order', 'name']
+        unique_together = [('project', 'name')]
         indexes = [
+            models.Index(fields=['project', 'status']),
             models.Index(fields=['project', 'order']),
-            models.Index(fields=['status']),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=['project', 'name'],
-                name='unique_stage_name_per_project'
-            )
         ]
 
     def __str__(self):
         return f"{self.project.code} - {self.name}"
-
+    
     @property
-    def actual_hours_total(self) -> Decimal:
-        """Suma de horas registradas en todas las tareas de esta etapa."""
+    def total_logged_hours(self) -> Decimal:
+        """Total de horas registradas en todas las tareas de esta etapa."""
         from django.db.models import Sum
-        result = self.tasks.aggregate(total=Sum('logged_hours'))['total']
-        return result or Decimal('0.00')
-
+        return self.tasks.aggregate(total=Sum('logged_hours'))['total'] or Decimal('0.00')
+    
     @property
-    def completion_percentage(self) -> float:
-        """Porcentaje de completitud basado en tareas."""
-        total_tasks = self.tasks.count()
-        if total_tasks == 0:
+    def total_planned_hours(self) -> Decimal:
+        """Total de horas estimadas en todas las tareas de esta etapa."""
+        from django.db.models import Sum
+        return self.tasks.aggregate(total=Sum('estimated_hours'))['total'] or Decimal('0.00')
+    
+    @property
+    def actual_cost(self) -> Decimal:
+        """Costo real acumulado de todas las tareas."""
+        total = Decimal('0.00')
+        for task in self.tasks.all():
+            total += task.actual_cost_projection
+        return total
+    
+    @property
+    def planned_value(self) -> Decimal:
+        """Valor planeado total de todas las tareas."""
+        total = Decimal('0.00')
+        for task in self.tasks.all():
+            total += task.planned_value
+        return total
+    
+    @property
+    def progress_percentage(self) -> float:
+        """Porcentaje de progreso basado en horas trabajadas vs estimadas."""
+        if self.total_planned_hours == 0:
             return 0.0
-        completed_tasks = self.tasks.filter(status='completed').count()
-        return (completed_tasks / total_tasks) * 100
+        return float((self.total_logged_hours / self.total_planned_hours) * 100)
 
 
 class Task(AuditableModel):
     """
-    Tarea (Unidad de Trabajo).
-    Implementa lógica dual: Estimación (Role) vs. Ejecución (Resource).
+    Tarea individual con lógica dual de costos.
+    
+    PLANIFICACIÓN (Lo Estimado):
+    - required_role (Role) + estimated_hours → planned_value
+    
+    EJECUCIÓN (Lo Real):
+    - assigned_resource (Resource) + logged_hours → actual_cost_projection
     """
     
     STATUS_CHOICES = [
-        ('pending', 'Pendiente'),
+        ('backlog', 'Backlog'),
+        ('todo', 'Por Hacer'),
         ('in_progress', 'En Progreso'),
-        ('blocked', 'Bloqueada'),
-        ('review', 'En Revisión'),
-        ('completed', 'Completada'),
-        ('cancelled', 'Cancelada'),
+        ('in_review', 'En Revisión'),
+        ('blocked', 'Bloqueado'),
+        ('completed', 'Completado'),
+        ('cancelled', 'Cancelado'),
     ]
     
     PRIORITY_CHOICES = [
@@ -424,17 +456,27 @@ class Task(AuditableModel):
         ('critical', 'Crítica'),
     ]
     
-    # Relación con etapa
-    stage = models.ForeignKey(
-        Stage,
+    # Relaciones
+    project = models.ForeignKey(
+        Project,
         on_delete=models.CASCADE,
         related_name='tasks',
-        verbose_name="Etapa"
+        verbose_name="Proyecto"
     )
     
-    # Información de la tarea
+    stage = models.ForeignKey(
+        Stage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tasks',
+        verbose_name="Etapa",
+        help_text="Etapa a la que pertenece esta tarea"
+    )
+    
+    # Información básica
     title = models.CharField(
-        max_length=255,
+        max_length=200,
         verbose_name="Título de la Tarea"
     )
     
@@ -443,48 +485,10 @@ class Task(AuditableModel):
         verbose_name="Descripción"
     )
     
-    # --- ESTIMACIÓN (Basada en Rol) ---
-    required_role = models.ForeignKey(
-        'resources.Role',
-        on_delete=models.PROTECT,
-        related_name='estimated_tasks',
-        verbose_name="Rol Requerido",
-        help_text="Rol necesario para esta tarea (usado en estimación)"
-    )
-    
-    estimated_hours = models.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Horas Estimadas",
-        help_text="Estimación inicial basada en el rol requerido"
-    )
-    
-    # --- EJECUCIÓN (Basada en Recurso) ---
-    assigned_resource = models.ForeignKey(
-        'resources.Resource',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='assigned_tasks',
-        verbose_name="Recurso Asignado",
-        help_text="Persona real asignada para ejecutar esta tarea"
-    )
-    
-    logged_hours = models.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Horas Registradas",
-        help_text="Suma de horas registradas en TimeLog"
-    )
-    
-    # Estado y prioridad
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='pending',
+        default='backlog',
         verbose_name="Estado"
     )
     
@@ -495,20 +499,59 @@ class Task(AuditableModel):
         verbose_name="Prioridad"
     )
     
-    # Fechas
-    start_date = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name="Fecha de Inicio"
+    # --- PLANIFICACIÓN (ESTIMACIÓN) ---
+    
+    required_role = models.ForeignKey(
+        Role,
+        on_delete=models.PROTECT,
+        related_name='tasks',
+        verbose_name="Rol Requerido",
+        help_text="Rol necesario para esta tarea (determina la tarifa de facturación)"
     )
     
+    estimated_hours = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Horas Estimadas",
+        help_text="Tiempo estimado para completar la tarea"
+    )
+    
+    # --- EJECUCIÓN (REALIDAD) ---
+    
+    assigned_resource = models.ForeignKey(
+        Resource,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_tasks',
+        verbose_name="Recurso Asignado",
+        help_text="Persona real asignada (determina el costo interno)"
+    )
+    
+    logged_hours = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name="Horas Registradas",
+        help_text="Actualizado automáticamente por TimeLog via signals"
+    )
+    
+    # Fechas
     due_date = models.DateField(
         null=True,
         blank=True,
         verbose_name="Fecha de Vencimiento"
     )
     
-    completed_date = models.DateField(
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Inicio Real"
+    )
+    
+    completion_date = models.DateField(
         null=True,
         blank=True,
         verbose_name="Fecha de Completitud"
@@ -517,140 +560,107 @@ class Task(AuditableModel):
     # Metadatos
     tags = models.JSONField(
         default=list,
-        verbose_name="Etiquetas",
-        help_text="Tags para categorización"
+        blank=True,
+        verbose_name="Etiquetas"
     )
     
     notes = models.TextField(
         blank=True,
         verbose_name="Notas"
     )
-    
-    is_billable = models.BooleanField(
-        default=True,
-        verbose_name="Facturable",
-        help_text="Si esta tarea se factura al cliente"
-    )
 
     class Meta:
         verbose_name = "Tarea"
         verbose_name_plural = "Tareas"
-        ordering = ['stage', 'priority', 'due_date']
+        ordering = ['-priority', 'due_date', 'created_at']
         indexes = [
-            models.Index(fields=['stage', 'status']),
+            models.Index(fields=['project', 'status']),
+            models.Index(fields=['project', 'stage']),
             models.Index(fields=['assigned_resource', 'status']),
-            models.Index(fields=['required_role']),
             models.Index(fields=['due_date']),
         ]
 
     def __str__(self):
-        return f"{self.stage.project.code} - {self.title}"
-
-    # --- PROPIEDADES CALCULADAS: ESTIMACIÓN ---
-
+        return f"[{self.project.code}] {self.title}"
+    
+    def clean(self):
+        """Validaciones personalizadas."""
+        super().clean()
+        
+        # Validar que la etapa pertenezca al mismo proyecto
+        if self.stage and self.stage.project_id != self.project_id:
+            raise ValidationError({
+                'stage': 'Stage must belong to the same project as the task.'
+            })
+    
+    # --- PROPIEDADES CALCULADAS (LÓGICA DUAL) ---
+    
     @property
     def planned_value(self) -> Decimal:
         """
-        Valor Planificado (Estimación).
-        Formula: estimated_hours × required_role.standard_rate
+        VALOR PLANIFICADO (Basado en Rol).
+        Fórmula: estimated_hours × required_role.standard_rate
+        Esto es lo que SE FACTURARÁ al cliente.
         """
         return self.estimated_hours * self.required_role.standard_rate
-
-    @property
-    def planned_cost(self) -> Decimal:
-        """
-        Alias de planned_value para claridad.
-        Representa el costo estimado de esta tarea en la planificación.
-        """
-        return self.planned_value
-
-    # --- PROPIEDADES CALCULADAS: EJECUCIÓN ---
-
+    
     @property
     def actual_cost_projection(self) -> Decimal:
         """
-        Proyección de Costo Real.
-        Formula: logged_hours × assigned_resource.internal_cost
-        Retorna 0 si no hay recurso asignado.
+        COSTO REAL PROYECTADO (Basado en Recurso).
+        Fórmula: logged_hours × assigned_resource.internal_cost
+        Esto es lo que CUESTA internamente.
         """
-        if self.assigned_resource:
-            return self.logged_hours * self.assigned_resource.internal_cost
-        return Decimal('0.00')
-
-    @property
-    def actual_cost(self) -> Decimal:
-        """
-        Alias de actual_cost_projection.
-        Representa el costo real consumido hasta el momento.
-        """
-        return self.actual_cost_projection
-
+        if not self.assigned_resource:
+            return Decimal('0.00')
+        return self.logged_hours * self.assigned_resource.internal_cost
+    
     @property
     def cost_variance(self) -> Decimal:
         """
-        Varianza de Costo.
-        Formula: actual_cost - planned_value
-        Positivo = sobrecosto, Negativo = ahorro
+        Variación de Costo.
+        Fórmula: actual_cost_projection - planned_value
+        Positivo = sobre presupuesto, Negativo = bajo presupuesto
         """
-        return self.actual_cost - self.planned_value
-
+        return self.actual_cost_projection - self.planned_value
+    
     @property
     def hours_variance(self) -> Decimal:
         """
-        Varianza de Horas.
-        Formula: logged_hours - estimated_hours
-        Positivo = más horas usadas, Negativo = menos horas
+        Variación de Horas.
+        Fórmula: logged_hours - estimated_hours
         """
         return self.logged_hours - self.estimated_hours
-
+    
+    @property
+    def is_over_budget(self) -> bool:
+        """¿Excedió el presupuesto?"""
+        return self.actual_cost_projection > self.planned_value
+    
     @property
     def completion_percentage(self) -> float:
         """
         Porcentaje de completitud basado en horas.
-        Formula: (logged_hours / estimated_hours) × 100
+        Fórmula: (logged_hours / estimated_hours) * 100
         """
-        if self.estimated_hours > 0:
-            percentage = float((self.logged_hours / self.estimated_hours) * 100)
-            return min(percentage, 100.0)  # Cap at 100%
-        return 0.0
-
+        if self.estimated_hours == 0:
+            return 0.0
+        percentage = float((self.logged_hours / self.estimated_hours) * 100)
+        return min(percentage, 100.0)  # Cap at 100%
+    
     @property
-    def is_over_budget(self) -> bool:
-        """Indica si la tarea está sobre presupuesto."""
-        return self.logged_hours > self.estimated_hours
-
-    @property
-    def billable_amount(self) -> Decimal:
-        """
-        Monto facturable al cliente.
-        Formula: logged_hours × required_role.standard_rate
-        Solo si is_billable=True
-        """
-        if self.is_billable:
-            return self.logged_hours * self.required_role.standard_rate
-        return Decimal('0.00')
-
-    def assign_to_resource(self, resource):
-        """Asigna la tarea a un recurso y cambia estado a in_progress."""
-        self.assigned_resource = resource
-        if self.status == 'pending':
-            self.status = 'in_progress'
-        self.save(update_fields=['assigned_resource', 'status', 'updated_at'])
-
-    def mark_completed(self):
-        """Marca la tarea como completada."""
-        self.status = 'completed'
-        self.completed_date = timezone.now().date()
-        self.save(update_fields=['status', 'completed_date', 'updated_at'])
+    def remaining_hours(self) -> Decimal:
+        """Horas restantes estimadas."""
+        remaining = self.estimated_hours - self.logged_hours
+        return max(remaining, Decimal('0.00'))
 
 
 class TimeLog(AuditableModel):
     """
-    Imputación de Horas (Registro de tiempo trabajado).
-    Vincula Recurso con Tarea para cálculo preciso de costos.
+    Registro de tiempo trabajado en una TAREA específica.
+    Auto-calcula cost (interno) y billable_amount (facturación).
     """
     
-    # Relaciones
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
@@ -659,63 +669,57 @@ class TimeLog(AuditableModel):
     )
     
     resource = models.ForeignKey(
-        'resources.Resource',
-        on_delete=models.CASCADE,
+        Resource,
+        on_delete=models.PROTECT,
         related_name='time_logs',
         verbose_name="Recurso"
     )
     
-    # Información del registro
     date = models.DateField(
-        verbose_name="Fecha",
-        help_text="Fecha en que se realizó el trabajo"
+        verbose_name="Fecha"
     )
     
     hours = models.DecimalField(
-        max_digits=5,
+        max_digits=6,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('24.00'))],
-        verbose_name="Horas",
-        help_text="Horas trabajadas (máx 24 por día)"
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Horas Trabajadas"
     )
     
-    description = models.TextField(
-        verbose_name="Descripción del Trabajo",
-        help_text="Qué se hizo en estas horas"
-    )
+    # --- CAMPOS AUTO-CALCULADOS ---
     
-    # Costos calculados automáticamente
     cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
+        default=Decimal('0.00'),
         verbose_name="Costo Interno (USD)",
-        help_text="Costo real: hours × resource.internal_cost (auto-calculado)"
+        help_text="Auto-calculado: hours × resource.internal_cost"
     )
     
     billable_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
+        default=Decimal('0.00'),
         verbose_name="Monto Facturable (USD)",
-        help_text="Monto a cobrar: hours × task.required_role.standard_rate (auto-calculado)"
+        help_text="Auto-calculado: hours × task.required_role.standard_rate"
     )
     
-    # Estado de facturación
-    is_approved = models.BooleanField(
-        default=False,
-        verbose_name="Aprobado",
-        help_text="Si el registro fue aprobado por el PM"
+    # Metadata
+    description = models.TextField(
+        blank=True,
+        verbose_name="Descripción del Trabajo",
+        help_text="¿Qué se hizo en estas horas?"
     )
     
-    is_invoiced = models.BooleanField(
-        default=False,
-        verbose_name="Facturado",
-        help_text="Si ya fue incluido en una factura"
+    is_billable = models.BooleanField(
+        default=True,
+        verbose_name="Es Facturable",
+        help_text="Si es False, no se factura al cliente (overhead interno)"
     )
     
-    # Notas
     notes = models.TextField(
         blank=True,
-        verbose_name="Notas"
+        verbose_name="Notas Internas"
     )
 
     class Meta:
@@ -725,41 +729,50 @@ class TimeLog(AuditableModel):
         indexes = [
             models.Index(fields=['task', 'date']),
             models.Index(fields=['resource', 'date']),
-            models.Index(fields=['is_approved', 'is_invoiced']),
             models.Index(fields=['date']),
         ]
+    
+    # Agregamos una propiedad para acceder al proyecto
+    @property
+    def project(self):
+        """Acceso al proyecto padre a través de la tarea."""
+        return self.task.project
 
     def __str__(self):
-        return f"{self.resource.full_name} - {self.task.title} - {self.date} ({self.hours}h)"
-
+        return f"{self.resource.full_name} - {self.hours}h en {self.task.title} ({self.date})"
+    
+    def clean(self):
+        """Validaciones personalizadas."""
+        super().clean()
+        
+        # Validar que las horas sean razonables (max 24h por día)
+        if self.hours > 24:
+            raise ValidationError({
+                'hours': 'Cannot log more than 24 hours in a single day.'
+            })
+    
     def save(self, *args, **kwargs):
-        """Auto-calcula costos antes de guardar."""
-        from decimal import Decimal
+        """
+        Sobrescribe save() para auto-calcular cost y billable_amount.
+        """
+        # Calcular COSTO INTERNO
+        self.cost = self.hours * self.resource.internal_cost
         
-        # Calcular costo interno (usando internal_cost del Resource)
-        self.cost = self.resource.internal_cost * self.hours
-        
-        # Calcular monto facturable (si la tarea es facturable)
-        # Usa el standard_rate del Role asociado a la tarea
-        if self.task.is_billable:
-            self.billable_amount = self.task.required_role.standard_rate * self.hours
+        # Calcular MONTO FACTURABLE
+        if self.is_billable:
+            self.billable_amount = self.hours * self.task.required_role.standard_rate
         else:
             self.billable_amount = Decimal('0.00')
         
         super().save(*args, **kwargs)
         
-        # Actualizar logged_hours en la tarea
-        total_hours = self.task.time_logs.aggregate(
-            total=models.Sum('hours')
-        )['total'] or Decimal('0.00')
-        self.task.logged_hours = total_hours
-        self.task.save(update_fields=['logged_hours', 'updated_at'])
+        # Nota: El signal post_save actualizará task.logged_hours automáticamente
 
 
 class TimeEntry(AuditableModel):
     """
-    Registro de tiempo trabajado en un proyecto.
-    Fundamental para tracking de horas en ambos tipos de proyecto.
+    Entrada de tiempo general al PROYECTO (no asociada a una tarea específica).
+    Útil para horas de gestión, overhead, reuniones generales.
     """
     
     project = models.ForeignKey(
@@ -770,85 +783,289 @@ class TimeEntry(AuditableModel):
     )
     
     resource = models.ForeignKey(
-        'resources.Resource',
-        on_delete=models.CASCADE,
+        Resource,
+        on_delete=models.PROTECT,
         related_name='time_entries',
         verbose_name="Recurso"
     )
     
-    # Información del registro
-    date = models.DateField(verbose_name="Fecha")
+    date = models.DateField(
+        verbose_name="Fecha"
+    )
+    
     hours = models.DecimalField(
-        max_digits=5,
+        max_digits=6,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Horas"
+        verbose_name="Horas Trabajadas"
     )
     
-    # Descripción del trabajo
-    description = models.TextField(verbose_name="Descripción del Trabajo")
-    task_category = models.CharField(
-        max_length=100,
-        blank=True,
-        verbose_name="Categoría de Tarea"
-    )
+    # --- CAMPOS AUTO-CALCULADOS ---
     
-    # Estado de facturación
-    is_billable = models.BooleanField(
-        default=True,
-        verbose_name="Facturable",
-        help_text="Si estas horas deben facturarse al cliente"
-    )
-    is_invoiced = models.BooleanField(
-        default=False,
-        verbose_name="Facturado"
-    )
-    
-    # Cálculos financieros
     cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        verbose_name="Costo (USD)",
-        help_text="Costo interno (resource hourly_cost * hours)"
+        default=Decimal('0.00'),
+        verbose_name="Costo Interno (USD)",
+        help_text="Auto-calculado: hours × resource.internal_cost"
     )
     
     billable_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        null=True,
-        blank=True,
+        default=Decimal('0.00'),
         verbose_name="Monto Facturable (USD)",
-        help_text="Monto a cobrar al cliente (para T&M)"
+        help_text="Auto-calculado según tipo de proyecto"
+    )
+    
+    # Metadata
+    description = models.TextField(
+        blank=True,
+        verbose_name="Descripción del Trabajo"
+    )
+    
+    is_billable = models.BooleanField(
+        default=True,
+        verbose_name="Es Facturable"
+    )
+    
+    category = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Categoría",
+        help_text="Ej: Gestión, Reuniones, Overhead"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        verbose_name="Notas"
     )
 
     class Meta:
-        verbose_name = "Registro de Tiempo"
-        verbose_name_plural = "Registros de Tiempo"
+        verbose_name = "Entrada de Tiempo"
+        verbose_name_plural = "Entradas de Tiempo"
         ordering = ['-date', '-created_at']
         indexes = [
             models.Index(fields=['project', 'date']),
             models.Index(fields=['resource', 'date']),
-            models.Index(fields=['is_billable', 'is_invoiced']),
+            models.Index(fields=['date']),
         ]
 
     def __str__(self):
-        return f"{self.resource.full_name} - {self.project.code} - {self.date} ({self.hours}h)"
-
+        return f"{self.resource.full_name} - {self.hours}h en {self.project.name} ({self.date})"
+    
+    def clean(self):
+        """Validaciones personalizadas."""
+        super().clean()
+        
+        # Validar horas razonables
+        if self.hours > 24:
+            raise ValidationError({
+                'hours': 'Cannot log more than 24 hours in a single day.'
+            })
+    
     def save(self, *args, **kwargs):
-        """Calcula automáticamente el costo al guardar."""
-        from decimal import Decimal
+        """
+        Sobrescribe save() para auto-calcular cost y billable_amount.
+        """
+        # Calcular COSTO INTERNO
+        self.cost = self.hours * self.resource.internal_cost
         
-        # Calcular costo interno (usando internal_cost del Resource)
-        self.cost = self.resource.internal_cost * self.hours
-        
-        # Para T&M, calcular monto facturable usando el rate del proyecto
-        if self.project.project_type == 't_and_m' and self.is_billable:
-            if self.project.hourly_rate:
-                self.billable_amount = self.project.hourly_rate * self.hours
+        # Calcular MONTO FACTURABLE según tipo de proyecto
+        if self.is_billable:
+            if self.project.project_type == 't_and_m' and self.project.hourly_rate:
+                # T&M con tarifa definida en el proyecto
+                self.billable_amount = self.hours * self.project.hourly_rate
             else:
-                # Si no hay rate definido, usar el rate del role primario del recurso
-                self.billable_amount = self.resource.primary_role.standard_rate * self.hours
+                # Usar standard_rate del rol principal del recurso
+                self.billable_amount = self.hours * self.resource.primary_role.standard_rate
         else:
             self.billable_amount = Decimal('0.00')
         
         super().save(*args, **kwargs)
+
+
+class Allocation(AuditableModel):
+    """
+    Asignación de Recurso a Proyecto en un rango temporal.
+    
+    Permite que un recurso trabaje en múltiples proyectos simultáneamente,
+    pero valida matemáticamente contra sobrecarga (burnout) y fragmentación
+    (context switching).
+    
+    RF-11: Motor de Validación de Asignaciones
+    """
+    
+    # Relaciones
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='allocations',
+        verbose_name="Proyecto"
+    )
+    
+    resource = models.ForeignKey(
+        Resource,
+        on_delete=models.CASCADE,
+        related_name='allocations',
+        verbose_name="Recurso"
+    )
+    
+    # Rango temporal de la asignación
+    start_date = models.DateField(
+        verbose_name="Fecha de Inicio",
+        help_text="Fecha en que inicia la asignación"
+    )
+    
+    end_date = models.DateField(
+        verbose_name="Fecha de Fin",
+        help_text="Fecha en que termina la asignación"
+    )
+    
+    # Carga horaria
+    hours_per_week = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('168.00'))],
+        verbose_name="Horas por Semana",
+        help_text="Cuántas horas a la semana dedicará a este proyecto (máx 168h = 7×24h)"
+    )
+    
+    # Estado
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Activa",
+        help_text="Si esta asignación está actualmente vigente"
+    )
+    
+    # Metadatos adicionales
+    notes = models.TextField(
+        blank=True,
+        verbose_name="Notas",
+        help_text="Observaciones sobre esta asignación"
+    )
+    
+    class Meta:
+        verbose_name = "Asignación"
+        verbose_name_plural = "Asignaciones"
+        ordering = ['-start_date', 'resource']
+        indexes = [
+            models.Index(fields=['resource', 'start_date', 'end_date']),
+            models.Index(fields=['project', 'start_date']),
+            models.Index(fields=['is_active']),
+        ]
+        
+    def __str__(self):
+        return f"{self.resource.full_name} → {self.project.code} ({self.hours_per_week}h/sem)"
+    
+    def clean(self):
+        """
+        Validación matemática de asignaciones con detección de:
+        1. Sobrecarga (Burnout): Total de horas > capacidad semanal
+        2. Fragmentación (Context Switching): >2 proyectos concurrentes
+        """
+        super().clean()
+        
+        # 1. Validar rango de fechas
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            raise ValidationError({
+                'end_date': 'La fecha de fin debe ser posterior a la fecha de inicio.'
+            })
+        
+        # 2. Obtener capacidad semanal del recurso (default: 40h)
+        capacity_weekly = getattr(self.resource, 'capacity_weekly', Decimal('40.00'))
+        
+        # 3. Buscar asignaciones solapadas usando Q objects
+        from django.db.models import Q, Sum
+        
+        # Filtrar asignaciones del mismo recurso que se solapen temporalmente
+        # Solapamiento: start <= new_end AND end >= new_start
+        overlapping_query = Q(
+            resource=self.resource,
+            is_active=True,
+            start_date__lte=self.end_date,
+            end_date__gte=self.start_date
+        )
+        
+        # Excluir la asignación actual si estamos editando
+        if self.pk:
+            overlapping_query &= ~Q(pk=self.pk)
+        
+        overlapping_allocations = Allocation.objects.filter(overlapping_query)
+        
+        # 4. Calcular total de horas solapadas
+        overlapping_sum = overlapping_allocations.aggregate(
+            total=Sum('hours_per_week')
+        )['total'] or Decimal('0.00')
+        
+        total_hours_with_new = overlapping_sum + self.hours_per_week
+        
+        # 5. HARD BLOCK: Validar sobrecarga (Burnout)
+        if total_hours_with_new > capacity_weekly:
+            overload = total_hours_with_new - capacity_weekly
+            raise ValidationError({
+                'hours_per_week': (
+                    f'⛔ SOBRECARGA DETECTADA: El recurso {self.resource.full_name} '
+                    f'ya tiene {overlapping_sum}h/sem asignadas en el periodo '
+                    f'{self.start_date} → {self.end_date}. '
+                    f'Agregar {self.hours_per_week}h/sem resultaría en {total_hours_with_new}h/sem, '
+                    f'excediendo la capacidad de {capacity_weekly}h/sem por {overload}h. '
+                    f'Disponibilidad restante: {capacity_weekly - overlapping_sum}h/sem.'
+                )
+            })
+        
+        # 6. SOFT WARNING: Detectar fragmentación (Context Switching)
+        # Contar proyectos distintos en asignaciones solapadas
+        concurrent_projects = overlapping_allocations.values('project').distinct().count()
+        
+        # Si ya tiene 2+ proyectos, agregar uno más significa alta fragmentación
+        if concurrent_projects >= 2:
+            # Django no tiene "warnings" nativos, añadimos al campo notes
+            warning_msg = (
+                f"⚠️ ALERTA DE FRAGMENTACIÓN: Este recurso ya trabaja en {concurrent_projects} "
+                f"proyectos concurrentes durante este periodo. Agregar un proyecto más "
+                f"(total: {concurrent_projects + 1}) puede causar Context Switching y "
+                f"reducir la eficiencia efectiva hasta un 40%. Se recomienda consolidar asignaciones."
+            )
+            
+            # Agregar warning a notes si no existe
+            if warning_msg not in (self.notes or ''):
+                self.notes = f"{warning_msg}\n\n{self.notes or ''}".strip()
+    
+    def save(self, *args, **kwargs):
+        """Ejecutar validación antes de guardar."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    @property
+    def duration_weeks(self) -> int:
+        """Calcula duración en semanas del periodo de asignación."""
+        if self.start_date and self.end_date:
+            delta = self.end_date - self.start_date
+            return max(1, delta.days // 7)
+        return 0
+    
+    @property
+    def total_hours_allocated(self) -> Decimal:
+        """Calcula total de horas asignadas en todo el periodo."""
+        return self.hours_per_week * Decimal(str(self.duration_weeks))
+    
+    @property
+    def overlaps_with_count(self) -> int:
+        """Cuenta cuántas otras asignaciones activas se solapan con esta."""
+        from django.db.models import Q
+        
+        if not self.start_date or not self.end_date:
+            return 0
+        
+        overlapping = Allocation.objects.filter(
+            Q(resource=self.resource) &
+            Q(is_active=True) &
+            Q(start_date__lte=self.end_date) &
+            Q(end_date__gte=self.start_date)
+        )
+        
+        if self.pk:
+            overlapping = overlapping.exclude(pk=self.pk)
+        
+        return overlapping.count()

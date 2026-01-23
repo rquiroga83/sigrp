@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Asignar Recursos - RF-11 - SIGRP{% endblock %}
+
+{% block extra_head %}
+<!-- HTMX para chequeo reactivo de disponibilidad -->
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'projects:list' %}">Proyectos</a></li>
+            <li class="breadcrumb-item active">Asignar Recursos (RF-11)</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-2">
+                <i class="bi bi-calendar-check me-2"></i>
+                RF-11: Motor de Validación de Asignaciones
+            </h1>
+            <p class="text-muted">
+                Sistema de asignación con detección matemática de sobrecarga (Burnout) 
+                y fragmentación (Context Switching)
+            </p>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Formulario de Asignación -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Nueva Asignación de Recurso a Proyecto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="allocationForm">
+                        {% csrf_token %}
+                        
+                        <!-- Proyecto -->
+                        <div class="mb-3">
+                            <label for="id_project" class="form-label fw-semibold">
+                                Proyecto <span class="text-danger">*</span>
+                            </label>
+                            <select name="project" id="id_project" class="form-select" required>
+                                <option value="">Seleccionar proyecto...</option>
+                                {% comment %}
+                                TODO: Cargar proyectos desde contexto
+                                {% for project in projects %}
+                                <option value="{{ project.pk }}">{{ project.code }} - {{ project.name }}</option>
+                                {% endfor %}
+                                {% endcomment %}
+                            </select>
+                        </div>
+
+                        <!-- Recurso con HTMX -->
+                        <div class="mb-3">
+                            <label for="id_resource" class="form-label fw-semibold">
+                                Recurso <span class="text-danger">*</span>
+                            </label>
+                            <select name="resource" 
+                                    id="id_resource" 
+                                    class="form-select" 
+                                    required
+                                    hx-get="{% url 'projects:check_availability' %}"
+                                    hx-trigger="change from:#id_resource, change from:#id_start_date, change from:#id_end_date, change from:#id_hours_per_week"
+                                    hx-include="#id_start_date, #id_end_date, #id_hours_per_week"
+                                    hx-target="#availability-result"
+                                    hx-indicator="#loading-indicator">
+                                <option value="">Seleccionar recurso...</option>
+                                {% comment %}
+                                TODO: Cargar recursos desde contexto
+                                {% for resource in resources %}
+                                <option value="{{ resource.pk }}">
+                                    {{ resource.full_name }} - {{ resource.primary_role.name }}
+                                </option>
+                                {% endfor %}
+                                {% endcomment %}
+                            </select>
+                            <small class="text-muted">
+                                El sistema verificará disponibilidad automáticamente
+                            </small>
+                        </div>
+
+                        <!-- Rango de Fechas -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_start_date" class="form-label fw-semibold">
+                                    Fecha de Inicio <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" 
+                                       name="start_date" 
+                                       id="id_start_date" 
+                                       class="form-control" 
+                                       required
+                                       hx-get="{% url 'projects:check_availability' %}"
+                                       hx-trigger="change"
+                                       hx-include="#id_resource, #id_end_date, #id_hours_per_week"
+                                       hx-target="#availability-result"
+                                       hx-indicator="#loading-indicator">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_end_date" class="form-label fw-semibold">
+                                    Fecha de Fin <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" 
+                                       name="end_date" 
+                                       id="id_end_date" 
+                                       class="form-control" 
+                                       required
+                                       hx-get="{% url 'projects:check_availability' %}"
+                                       hx-trigger="change"
+                                       hx-include="#id_resource, #id_start_date, #id_hours_per_week"
+                                       hx-target="#availability-result"
+                                       hx-indicator="#loading-indicator">
+                            </div>
+                        </div>
+
+                        <!-- Horas por Semana -->
+                        <div class="mb-3">
+                            <label for="id_hours_per_week" class="form-label fw-semibold">
+                                Horas por Semana <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   name="hours_per_week" 
+                                   id="id_hours_per_week" 
+                                   class="form-control" 
+                                   step="0.5" 
+                                   min="0.01" 
+                                   max="168" 
+                                   required
+                                   placeholder="Ej: 20"
+                                   hx-get="{% url 'projects:check_availability' %}"
+                                   hx-trigger="change delay:500ms"
+                                   hx-include="#id_resource, #id_start_date, #id_end_date"
+                                   hx-target="#availability-result"
+                                   hx-indicator="#loading-indicator">
+                            <small class="text-muted">
+                                Máximo: 168h (7 días × 24 horas)
+                            </small>
+                        </div>
+
+                        <!-- Notas -->
+                        <div class="mb-3">
+                            <label for="id_notes" class="form-label fw-semibold">
+                                Notas
+                            </label>
+                            <textarea name="notes" 
+                                      id="id_notes" 
+                                      class="form-control" 
+                                      rows="3"
+                                      placeholder="Observaciones adicionales sobre esta asignación..."></textarea>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'projects:list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="btnSubmit">
+                                <i class="bi bi-check-lg me-2"></i>Crear Asignación
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Disponibilidad (HTMX Target) -->
+        <div class="col-lg-4">
+            <div class="sticky-top" style="top: 20px;">
+                <!-- Indicador de carga -->
+                <div id="loading-indicator" class="htmx-indicator mb-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Calculando...</span>
+                            </div>
+                            <p class="mb-0 mt-2 text-muted">Verificando disponibilidad...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultado de disponibilidad -->
+                <div id="availability-result">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-info-circle text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3 mb-0">
+                                Selecciona un recurso y fechas para ver su disponibilidad
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información Adicional -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h6 class="alert-heading">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Cómo Funciona el Motor de Validación
+                </h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>🛑 Hard Block (Sobrecarga)</strong>
+                        <p class="small mb-0">
+                            Impide asignaciones que excedan la capacidad semanal del recurso 
+                            (default: 40h). Previene Burnout.
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>⚠️ Soft Warning (Fragmentación)</strong>
+                        <p class="small mb-0">
+                            Alerta cuando un recurso trabaja en ≥3 proyectos simultáneos. 
+                            Context Switching reduce eficiencia hasta 40%.
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>📊 Chequeo en Tiempo Real</strong>
+                        <p class="small mb-0">
+                            HTMX verifica disponibilidad mientras completas el formulario. 
+                            Ves resultados antes de guardar.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos para indicador HTMX */
+.htmx-indicator {
+    display: none;
+}
+.htmx-request .htmx-indicator {
+    display: block;
+}
+.htmx-request.htmx-indicator {
+    display: block;
+}
+</style>
+
+<script>
+// Validación del lado del cliente
+document.getElementById('allocationForm')?.addEventListener('submit', function(e) {
+    const startDate = document.getElementById('id_start_date').value;
+    const endDate = document.getElementById('id_end_date').value;
+    
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+        e.preventDefault();
+        alert('La fecha de fin debe ser posterior a la fecha de inicio');
+        return false;
+    }
+});
+
+// Feedback visual al cargar datos con HTMX
+document.body.addEventListener('htmx:beforeRequest', function(evt) {
+    document.getElementById('availability-result').style.opacity = '0.5';
+});
+
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    document.getElementById('availability-result').style.opacity = '1';
+});
+</script>
+{% endblock %}

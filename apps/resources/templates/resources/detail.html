@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ resource.full_name }} - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Navegación -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'resources:list' %}">Recursos</a></li>
+            <li class="breadcrumb-item active">{{ resource.full_name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Encabezado del recurso -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <div class="avatar-circle-large bg-primary text-white">
+                                {{ resource.first_name|first }}{{ resource.last_name|first }}
+                            </div>
+                        </div>
+                        <div class="col">
+                            <h2 class="mb-1">{{ resource.full_name }}</h2>
+                            <p class="text-muted mb-2">
+                                <span class="badge bg-secondary me-2">{{ resource.primary_role.name }}</span>
+                                <span class="badge bg-info">{{ resource.employee_id }}</span>
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-envelope text-muted me-2"></i>{{ resource.email }}
+                                {% if resource.phone %}
+                                <i class="fas fa-phone text-muted ms-3 me-2"></i>{{ resource.phone }}
+                                {% endif %}
+                                {% if resource.location %}
+                                <i class="fas fa-map-marker-alt text-muted ms-3 me-2"></i>{{ resource.location }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-auto">
+                            {% if resource.status == 'available' %}
+                            <span class="badge bg-success p-3">
+                                <i class="fas fa-check-circle"></i> Disponible
+                            </span>
+                            {% elif resource.status == 'partially_allocated' %}
+                            <span class="badge bg-warning text-dark p-3">
+                                <i class="fas fa-hourglass-half"></i> Parcialmente Asignado
+                            </span>
+                            {% elif resource.status == 'fully_allocated' %}
+                            <span class="badge bg-info p-3">
+                                <i class="fas fa-user-clock"></i> Totalmente Asignado
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary p-3">
+                                <i class="fas fa-times-circle"></i> No Disponible
+                            </span>
+                            {% endif %}
+                            <div class="mt-2">
+                                <a href="{% url 'admin:resources_resource_change' resource.pk %}" class="btn btn-primary">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información financiera -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Costo Interno</h6>
+                    <h3 class="text-success mb-0">${{ resource.internal_cost }}/hr</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Tarifa Estándar</h6>
+                    <h3 class="text-primary mb-0">${{ resource.effective_rate }}/hr</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Ratio Costo/Tarifa</h6>
+                    <h3 class="mb-0">{{ resource.cost_vs_rate_ratio|floatformat:1 }}%</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Disponibilidad</h6>
+                    <h3 class="mb-0">{{ resource.availability_percentage }}%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Habilidades -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-code"></i> Habilidades Técnicas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if resource.skills_vector %}
+                    <div class="row">
+                        {% for skill in resource.skills_vector %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ skill.name }}</strong>
+                                <span class="badge 
+                                    {% if skill.level >= 4 %}bg-success
+                                    {% elif skill.level >= 3 %}bg-primary
+                                    {% elif skill.level >= 2 %}bg-info
+                                    {% else %}bg-secondary{% endif %}">
+                                    Nivel {{ skill.level }}/5
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar 
+                                    {% if skill.level >= 4 %}bg-success
+                                    {% elif skill.level >= 3 %}bg-primary
+                                    {% elif skill.level >= 2 %}bg-info
+                                    {% else %}bg-secondary{% endif %}"
+                                    role="progressbar" 
+                                    style="width: {% widthratio skill.level 5 100 %}%"
+                                    aria-valuenow="{{ skill.level }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="5">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <hr>
+                    <div class="text-center text-muted">
+                        <i class="fas fa-chart-line me-2"></i>
+                        <strong>{{ resource.get_total_skills }}</strong> habilidades registradas |
+                        Nivel promedio: <strong>{{ resource.get_average_skill_level|floatformat:1 }}/5.0</strong>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-code fa-3x mb-3"></i>
+                        <p>No hay habilidades registradas aún.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Biografía -->
+            {% if resource.bio %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user"></i> Biografía Profesional
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ resource.bio }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Información adicional -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Información
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Categoría del Rol</small>
+                        <div><strong>{{ resource.primary_role.get_category_display }}</strong></div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Seniority</small>
+                        <div><strong>{{ resource.primary_role.get_seniority_display }}</strong></div>
+                    </div>
+                    {% if resource.hire_date %}
+                    <div class="mb-3">
+                        <small class="text-muted">Fecha de Contratación</small>
+                        <div><strong>{{ resource.hire_date|date:"d/m/Y" }}</strong></div>
+                    </div>
+                    {% endif %}
+                    <div class="mb-0">
+                        <small class="text-muted">Estado</small>
+                        <div>
+                            {% if resource.is_active %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Certificaciones -->
+            {% if resource.certifications %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-certificate"></i> Certificaciones
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        {% for cert in resource.certifications %}
+                        <li class="mb-2">
+                            <i class="fas fa-award text-warning me-2"></i>
+                            <strong>{{ cert }}</strong>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tecnologías preferidas -->
+            {% if resource.preferred_technologies %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-heart"></i> Tecnologías Preferidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for tech in resource.preferred_technologies %}
+                    <span class="badge bg-light text-dark me-1 mb-2">{{ tech }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 32px;
+}
+</style>
+{% endblock %}

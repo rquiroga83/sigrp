@@ -21,6 +21,7 @@ dependencies = [
     "django-crispy-forms>=2.1",
     "crispy-bootstrap5>=2.0.0",
     "qdrant-client>=1.16.2",
+    "sentence-transformers>=5.2.0",
 ]
 
 [project.optional-dependencies]

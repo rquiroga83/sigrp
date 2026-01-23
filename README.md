@@ -165,6 +165,8 @@ python -m spacy download es_core_news_sm
 # Desarrollo
 python manage.py runserver
 
+$env:Path += ";$env:USERPROFILE\.local\bin"; uv run python manage.py runserver
+
 # Producción (con Gunicorn)
 gunicorn config.wsgi:application --bind 0.0.0.0:8000
 ```
@@ -342,7 +344,7 @@ Propietario - Todos los derechos reservados
 
 ## 👨‍💻 Autor
 
-**Rodrigo Quiroga**
+**Rodolfo Quiroga**
 - GitHub: [@rquiroga83](https://github.com/rquiroga83)
 
 ---

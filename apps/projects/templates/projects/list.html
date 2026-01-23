@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Proyectos - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">
+                        <i class="bi bi-kanban me-2"></i>Proyectos
+                    </h1>
+                    <p class="text-muted mb-0">Gestión de proyectos con arquitectura financiera dual</p>
+                </div>
+                <div>
+                    <a href="/admin/projects/project/add/" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-2"></i>Nuevo Proyecto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                                <i class="bi bi-folder fs-4 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total</h6>
+                            <h3 class="mb-0">{{ stats.total }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                                <i class="bi bi-play-circle fs-4 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Activos</h6>
+                            <h3 class="mb-0">{{ stats.active }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                                <i class="bi bi-lightbulb fs-4 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Planificación</h6>
+                            <h3 class="mb-0">{{ stats.planning }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                                <i class="bi bi-check-circle fs-4 text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Completados</h6>
+                            <h3 class="mb-0">{{ stats.completed }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Proyectos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Todos los Proyectos</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if projects %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Cliente</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th class="text-end">Costo Total</th>
+                                    <th class="text-end">Facturable</th>
+                                    <th class="text-end">Margen</th>
+                                    <th class="text-center">Progreso</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in projects %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ project.code }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">{{ project.name }}</div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>
+                                            {% if project.start_date %}{{ project.start_date|date:"d M Y" }}{% else %}Sin fecha{% endif %}
+                                        </small>
+                                    </td>
+                                    <td>{{ project.client_name }}</td>
+                                    <td>
+                                        {% if project.project_type == 'fixed' %}
+                                            <span class="badge bg-primary">Fixed Price</span>
+                                        {% elif project.project_type == 't_and_m' %}
+                                            <span class="badge bg-info">Time & Materials</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Hybrid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if project.status == 'active' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-play-fill me-1"></i>Activo
+                                            </span>
+                                        {% elif project.status == 'planning' %}
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-lightbulb me-1"></i>Planificación
+                                            </span>
+                                        {% elif project.status == 'completed' %}
+                                            <span class="badge bg-info">
+                                                <i class="bi bi-check-circle me-1"></i>Completado
+                                            </span>
+                                        {% elif project.status == 'on_hold' %}
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-pause-circle me-1"></i>En Pausa
+                                            </span>
+                                        {% elif project.status == 'cancelled' %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-x-circle me-1"></i>Cancelado
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Borrador</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-semibold">${{ project.total_cost|floatformat:2 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-semibold text-success">${{ project.total_billable|floatformat:2 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if project.profit_margin >= project.profit_margin_target %}
+                                            <span class="badge bg-success">{{ project.profit_margin|floatformat:1 }}%</span>
+                                        {% elif project.profit_margin >= 15 %}
+                                            <span class="badge bg-warning">{{ project.profit_margin|floatformat:1 }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ project.profit_margin|floatformat:1 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="progress" style="height: 20px; min-width: 80px;">
+                                            <div class="progress-bar {% if project.completion_percentage >= 100 %}bg-success{% elif project.completion_percentage >= 75 %}bg-info{% elif project.completion_percentage >= 50 %}bg-warning{% else %}bg-secondary{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ project.completion_percentage }}%"
+                                                 aria-valuenow="{{ project.completion_percentage }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                {{ project.completion_percentage|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'projects:detail' project.pk %}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               title="Ver detalles del proyecto">
+                                                <i class="bi bi-eye me-1"></i>Ver
+                                            </a>
+                                            <a href="/admin/projects/project/{{ project.pk }}/change/" 
+                                               class="btn btn-sm btn-outline-secondary" 
+                                               title="Editar proyecto">
+                                                <i class="bi bi-pencil me-1"></i>Editar
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-folder-x fs-1 text-muted"></i>
+                        <p class="text-muted mt-3">No hay proyectos registrados</p>
+                        <a href="/admin/projects/project/add/" class="btn btn-primary">
+                            <i class="bi bi-plus-lg me-2"></i>Crear Primer Proyecto
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información sobre arquitectura dual -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h6 class="alert-heading">
+                    <i class="bi bi-info-circle me-2"></i>Arquitectura Financiera Dual
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>PLANIFICACIÓN (Facturación):</strong></p>
+                        <small>Valor Planificado = Horas Estimadas × Tarifa del Rol</small>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>EJECUCIÓN (Costo Real):</strong></p>
+                        <small>Costo Real = Horas Registradas × Costo Interno del Recurso</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

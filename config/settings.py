@@ -148,6 +148,15 @@ CACHES = {
 SPACY_MODEL = os.getenv('SPACY_MODEL', 'es_core_news_sm')
 ENABLE_SENTIMENT_ANALYSIS = os.getenv('ENABLE_SENTIMENT_ANALYSIS', 'True') == 'True'
 
+# Qdrant Vector Store
+QDRANT_HOST = os.getenv('QDRANT_HOST', 'localhost')
+QDRANT_PORT = int(os.getenv('QDRANT_PORT', '6333'))
+
+# Authentication URLs
+LOGIN_URL = '/admin/login/'  # Usar login del admin temporalmente
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+
 # Debug Toolbar
 INTERNAL_IPS = ['127.0.0.1', 'localhost']
 
