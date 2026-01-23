@@ -2,7 +2,7 @@
 Modelos para gestión de proyectos (Fixed Price vs Time & Material).
 """
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 from apps.core.models import AuditableModel
