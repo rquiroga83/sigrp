@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - SIGRP{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-light p-5 rounded">
+            <h1 class="display-4">Bienvenido a SIGRP</h1>
+            <p class="lead">Sistema Integrado de Gestión de Recursos y Proyectos</p>
+            <hr class="my-4">
+            <p>Gestiona recursos humanos, proyectos y análisis predictivo en una sola plataforma.</p>
+            <a class="btn btn-primary btn-lg" href="{% url 'analytics:dashboard' %}" role="button">
+                Ver Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📊 Proyectos</h5>
+                <p class="card-text">Gestión de proyectos Fixed Price y Time & Material.</p>
+                <a href="{% url 'projects:list' %}" class="btn btn-outline-primary">Ver Proyectos</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">👥 Recursos</h5>
+                <p class="card-text">Gestión de recursos humanos con vector de habilidades.</p>
+                <a href="{% url 'resources:list' %}" class="btn btn-outline-primary">Ver Recursos</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📝 Standups</h5>
+                <p class="card-text">Daily standups con análisis de sentimiento NLP.</p>
+                <a href="{% url 'standups:list' %}" class="btn btn-outline-primary">Ver Standups</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+[project]
+name = "sigrp"
+version = "0.1.0"
+description = "Sistema Integrado de Gestión de Recursos y Proyectos"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0,<6.0",
+    "django-htmx>=1.17.0",
+    "psycopg[binary]>=3.1.0",
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+    "django-celery-beat>=2.5.0",
+    "django-celery-results>=2.5.0",
+    "gunicorn>=21.2.0",
+    "spacy>=3.7.0",
+    "python-dotenv>=1.0.0",
+    "pillow>=10.0.0",
+    "whitenoise>=6.6.0",
+    "django-extensions>=3.2.0",
+    "django-crispy-forms>=2.1",
+    "crispy-bootstrap5>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-django>=4.7.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.0",
+    "ruff>=0.1.9",
+    "mypy>=1.8.0",
+    "django-debug-toolbar>=4.2.0",
+    "ipython>=8.19.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | migrations
+  | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "*/migrations/*",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=sigrp --cov-report=html --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+plugins = ["mypy_django_plugin.main"]
+
+[[tool.mypy.overrides]]
+module = "*.migrations.*"
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"

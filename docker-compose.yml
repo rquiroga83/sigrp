@@ -1,0 +1,44 @@
+services:
+  # Base de Datos Relacional (Django Core)
+  db:
+    image: postgres:15-alpine
+    container_name: sigrp_postgres
+    environment:
+      - POSTGRES_USER=sigrp_user
+      - POSTGRES_PASSWORD=sigrp_password
+      - POSTGRES_DB=sigrp_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sigrp_user -d sigrp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Base de Datos Vectorial (Para Skills Vectors y NLP Embeddings)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: sigrp_qdrant
+    ports:
+      - "6333:6333" # HTTP API
+      - "6334:6334" # GRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__ENABLE_GRPC=true
+
+  # Broker de Mensajería (Celery/Tasks)
+  redis:
+    image: redis:7-alpine
+    container_name: sigrp_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data: # Volumen persistente para Qdrant
