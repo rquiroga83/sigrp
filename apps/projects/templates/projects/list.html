@@ -186,9 +186,13 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="progress" style="height: 20px; min-width: 80px;">
+                                            {% widthratio project.completion_percentage 1 1 as progress_width %}
+                                            {% if progress_width > 100 %}
+                                                {% widthratio 100 1 1 as progress_width %}
+                                            {% endif %}
                                             <div class="progress-bar {% if project.completion_percentage >= 100 %}bg-success{% elif project.completion_percentage >= 75 %}bg-info{% elif project.completion_percentage >= 50 %}bg-warning{% else %}bg-secondary{% endif %}" 
                                                  role="progressbar" 
-                                                 style="width: {{ project.completion_percentage }}%"
+                                                 style="width: {{ progress_width }}%"
                                                  aria-valuenow="{{ project.completion_percentage }}" 
                                                  aria-valuemin="0" 
                                                  aria-valuemax="100">
@@ -197,15 +201,15 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="btn-group" role="group">
+                                        <div class="d-flex gap-1">
                                             <a href="{% url 'projects:detail' project.pk %}" 
-                                               class="btn btn-sm btn-outline-primary" 
-                                               title="Ver detalles del proyecto">
+                                               class="btn btn-sm btn-primary" 
+                                               title="Ver detalles">
                                                 <i class="bi bi-eye me-1"></i>Ver
                                             </a>
-                                            <a href="/admin/projects/project/{{ project.pk }}/change/" 
-                                               class="btn btn-sm btn-outline-secondary" 
-                                               title="Editar proyecto">
+                                            <a href="{% url 'projects:edit' project.pk %}" 
+                                               class="btn btn-sm btn-warning" 
+                                               title="Editar">
                                                 <i class="bi bi-pencil me-1"></i>Editar
                                             </a>
                                         </div>

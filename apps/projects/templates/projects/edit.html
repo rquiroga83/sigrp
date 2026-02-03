@@ -1,0 +1,613 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Editar {{ project.code }} - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Editar Proyecto</h1>
+            <p class="text-muted mb-0">
+                <span class="badge bg-secondary">{{ project.code }}</span>
+                {{ project.name }}
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'projects:detail' project.pk %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver al Detalle
+            </a>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+        <div class="row mb-3">
+            <div class="col-12">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="editTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="project-tab" data-bs-toggle="tab" data-bs-target="#project" type="button">
+                <i class="bi bi-folder"></i> Datos del Proyecto
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stages-tab" data-bs-toggle="tab" data-bs-target="#stages" type="button">
+                <i class="bi bi-list-task"></i> Etapas ({{ stages.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button">
+                <i class="bi bi-check2-square"></i> Tareas por Etapa
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="editTabsContent">
+        
+        <!-- TAB 1: DATOS DEL PROYECTO -->
+        <div class="tab-pane fade show active" id="project" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Información del Proyecto</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_project">
+                        
+                        <div class="row">
+                            <!-- Columna 1 -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Código</label>
+                                    <input type="text" class="form-control" value="{{ project.code }}" disabled>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Nombre *</label>
+                                    <input type="text" class="form-control" name="name" value="{{ project.name }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Cliente *</label>
+                                    <input type="text" class="form-control" name="client_name" value="{{ project.client_name }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Descripción</label>
+                                    <textarea class="form-control" name="description" rows="3">{{ project.description }}</textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Columna 2 -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Proyecto</label>
+                                    <select class="form-select" name="project_type" id="projectType">
+                                        {% for value, label in project_types %}
+                                            <option value="{{ value }}" {% if project.project_type == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Estado</label>
+                                    <select class="form-select" name="status">
+                                        {% for value, label in status_choices %}
+                                            <option value="{{ value }}" {% if project.status == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Prioridad</label>
+                                    <select class="form-select" name="priority">
+                                        {% for value, label in priority_choices %}
+                                            <option value="{{ value }}" {% if project.priority == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Fecha Inicio</label>
+                                        <input type="date" class="form-control" name="start_date" 
+                                               value="{{ project.start_date|date:'Y-m-d' }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Fecha Fin</label>
+                                        <input type="date" class="form-control" name="end_date" 
+                                               value="{{ project.end_date|date:'Y-m-d' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sección Financiera -->
+                        <hr>
+                        <h6 class="mb-3">Configuración Financiera</h6>
+                        
+                        <div id="fixedPriceFields" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Precio Fijo (USD)</label>
+                                    <input type="number" class="form-control" name="fixed_price" 
+                                           value="{{ project.fixed_price }}" step="0.01">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Límite de Presupuesto (USD)</label>
+                                    <input type="number" class="form-control" name="budget_limit" 
+                                           value="{{ project.budget_limit }}" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="tmFields" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Tarifa por Hora (USD)</label>
+                                    <input type="number" class="form-control" name="hourly_rate" 
+                                           value="{{ project.hourly_rate }}" step="0.01">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Presupuesto Máximo (USD)</label>
+                                    <input type="number" class="form-control" name="max_budget" 
+                                           value="{{ project.max_budget }}" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Guardar Cambios del Proyecto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB 2: ETAPAS -->
+        <div class="tab-pane fade" id="stages" role="tabpanel">
+            <!-- Botón crear etapa -->
+            <div class="mb-3">
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createStageModal">
+                    <i class="bi bi-plus-circle"></i> Nueva Etapa
+                </button>
+            </div>
+            
+            <!-- Lista de etapas -->
+            <div class="row">
+                {% for stage in stages %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ stage.name }}</strong>
+                                <span class="badge bg-secondary ms-2">Orden: {{ stage.order }}</span>
+                                {% if stage.status == 'completed' %}
+                                    <span class="badge bg-success ms-1">Completado</span>
+                                {% elif stage.status == 'in_progress' %}
+                                    <span class="badge bg-primary ms-1">En Progreso</span>
+                                {% else %}
+                                    <span class="badge bg-secondary ms-1">Planificado</span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="editStage({{ stage.id }}, '{{ stage.name|escapejs }}', '{{ stage.description|escapejs }}', {{ stage.order }}, '{{ stage.status }}')">
+                                    <i class="bi bi-pencil me-1"></i>Editar
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteStage({{ stage.id }}, '{{ stage.name|escapejs }}')">
+                                    <i class="bi bi-trash me-1"></i>Eliminar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-2">{{ stage.description|default:"Sin descripción" }}</p>
+                            <small class="text-muted">
+                                <i class="bi bi-check2-square"></i> {{ stage.tasks.count }} tarea{{ stage.tasks.count|pluralize }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        No hay etapas creadas. Usa el botón "Nueva Etapa" para comenzar.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- TAB 3: TAREAS -->
+        <div class="tab-pane fade" id="tasks" role="tabpanel">
+            <!-- Botón crear tarea -->
+            <div class="mb-3">
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                    <i class="bi bi-plus-circle"></i> Nueva Tarea
+                </button>
+            </div>
+            
+            <!-- Tareas agrupadas por etapa -->
+            {% for stage in stages %}
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-collection"></i> {{ stage.name }}
+                        <span class="badge bg-secondary ms-2">{{ stage.tasks.count }} tarea{{ stage.tasks.count|pluralize }}</span>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if stage.tasks.all %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Tarea</th>
+                                    <th>Rol</th>
+                                    <th>Horas Est.</th>
+                                    <th>Prioridad</th>
+                                    <th>Estado</th>
+                                    <th>Vencimiento</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in stage.tasks.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ task.title }}</strong>
+                                        {% if task.description %}
+                                        <br><small class="text-muted">{{ task.description|truncatewords:10 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.required_role.name }}</td>
+                                    <td>{{ task.estimated_hours }}h</td>
+                                    <td>
+                                        {% if task.priority == 'critical' %}
+                                            <span class="badge bg-danger">Crítica</span>
+                                        {% elif task.priority == 'high' %}
+                                            <span class="badge bg-warning">Alta</span>
+                                        {% elif task.priority == 'medium' %}
+                                            <span class="badge bg-info">Media</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Baja</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.status == 'completed' %}
+                                            <span class="badge bg-success">Completado</span>
+                                        {% elif task.status == 'in_progress' %}
+                                            <span class="badge bg-primary">En Progreso</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.due_date %}
+                                            {{ task.due_date|date:"d/m/Y" }}
+                                        {% else %}
+                                            <small class="text-muted">Sin fecha</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="editTask({{ task.id }})">
+                                            <i class="bi bi-pencil me-1"></i>Editar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="deleteTask({{ task.id }}, '{{ task.title|escapejs }}')">
+                                            <i class="bi bi-trash me-1"></i>Eliminar
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-center text-muted">
+                        No hay tareas en esta etapa
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Tareas sin etapa -->
+            {% if tasks_without_stage %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <h6 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Tareas Sin Etapa
+                        <span class="badge bg-warning ms-2">{{ tasks_without_stage.count }}</span>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Tarea</th>
+                                    <th>Rol</th>
+                                    <th>Horas Est.</th>
+                                    <th>Prioridad</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in tasks_without_stage %}
+                                <tr>
+                                    <td><strong>{{ task.title }}</strong></td>
+                                    <td>{{ task.required_role.name }}</td>
+                                    <td>{{ task.estimated_hours }}h</td>
+                                    <td>
+                                        {% if task.priority == 'critical' %}
+                                            <span class="badge bg-danger">Crítica</span>
+                                        {% elif task.priority == 'high' %}
+                                            <span class="badge bg-warning">Alta</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ task.get_priority_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="editTask({{ task.id }})">
+                                            <i class="bi bi-pencil me-1"></i>Editar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="deleteTask({{ task.id }}, '{{ task.title|escapejs }}')">
+                                            <i class="bi bi-trash me-1"></i>Eliminar
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Crear Etapa -->
+<div class="modal fade" id="createStageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_stage">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Etapa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" class="form-control" name="stage_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="stage_description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Orden</label>
+                        <input type="number" class="form-control" name="stage_order" value="{{ stages.count|add:1 }}" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Crear Etapa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Etapa -->
+<div class="modal fade" id="editStageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_stage">
+                <input type="hidden" name="stage_id" id="edit_stage_id">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Etapa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" class="form-control" name="stage_name" id="edit_stage_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="stage_description" id="edit_stage_description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Orden</label>
+                        <input type="number" class="form-control" name="stage_order" id="edit_stage_order" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select class="form-select" name="stage_status" id="edit_stage_status">
+                            {% for value, label in stage_status_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Crear Tarea -->
+<div class="modal fade" id="createTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_task">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Tarea</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Título *</label>
+                            <input type="text" class="form-control" name="task_title" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Etapa</label>
+                            <select class="form-select" name="task_stage">
+                                <option value="">Sin etapa</option>
+                                {% for stage in stages %}
+                                    <option value="{{ stage.id }}">{{ stage.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="task_description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Rol Requerido *</label>
+                            <select class="form-select" name="task_role" required>
+                                <option value="">Seleccione...</option>
+                                {% for role in roles %}
+                                    <option value="{{ role.id }}">{{ role.name }} ({{ role.get_level_display }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Horas Estimadas *</label>
+                            <input type="number" class="form-control" name="task_estimated_hours" step="0.5" min="0.1" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Fecha Vencimiento</label>
+                            <input type="date" class="form-control" name="task_due_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Prioridad</label>
+                        <select class="form-select" name="task_priority">
+                            {% for value, label in task_priority_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Crear Tarea</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Formularios ocultos para eliminar -->
+<form method="post" id="deleteStageForm" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_stage">
+    <input type="hidden" name="stage_id" id="delete_stage_id">
+</form>
+
+<form method="post" id="deleteTaskForm" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_task">
+    <input type="hidden" name="task_id" id="delete_task_id">
+</form>
+
+<script>
+// Mostrar/ocultar campos financieros según tipo de proyecto
+document.getElementById('projectType').addEventListener('change', function() {
+    const fixedFields = document.getElementById('fixedPriceFields');
+    const tmFields = document.getElementById('tmFields');
+    
+    if (this.value === 'fixed') {
+        fixedFields.style.display = 'block';
+        tmFields.style.display = 'none';
+    } else if (this.value === 't_and_m') {
+        fixedFields.style.display = 'none';
+        tmFields.style.display = 'block';
+    } else {
+        fixedFields.style.display = 'block';
+        tmFields.style.display = 'block';
+    }
+});
+
+// Inicializar visibilidad al cargar
+document.getElementById('projectType').dispatchEvent(new Event('change'));
+
+// Editar etapa
+function editStage(id, name, description, order, status) {
+    document.getElementById('edit_stage_id').value = id;
+    document.getElementById('edit_stage_name').value = name;
+    document.getElementById('edit_stage_description').value = description;
+    document.getElementById('edit_stage_order').value = order;
+    document.getElementById('edit_stage_status').value = status;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editStageModal'));
+    modal.show();
+}
+
+// Eliminar etapa
+function deleteStage(id, name) {
+    if (confirm(`¿Está seguro que desea eliminar la etapa "${name}"?\n\nNOTA: Solo se puede eliminar si no tiene tareas asignadas.`)) {
+        document.getElementById('delete_stage_id').value = id;
+        document.getElementById('deleteStageForm').submit();
+    }
+}
+
+// Eliminar tarea
+function deleteTask(id, title) {
+    if (confirm(`¿Está seguro que desea eliminar la tarea "${title}"?\n\nNOTA: Solo se puede eliminar si no tiene horas registradas.`)) {
+        document.getElementById('delete_task_id').value = id;
+        document.getElementById('deleteTaskForm').submit();
+    }
+}
+
+// TODO: Implementar editar tarea (similar a editar etapa)
+function editTask(id) {
+    alert('Función de edición de tarea en desarrollo. Por ahora, use el admin de Django para editar tareas.');
+}
+</script>
+{% endblock %}

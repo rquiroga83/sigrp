@@ -46,8 +46,9 @@ class Role(AuditableModel):
     code = models.CharField(
         max_length=20,
         unique=True,
+        blank=False,  # Campo obligatorio
         verbose_name="Código del Rol",
-        help_text="Ej: SBE, JQA"
+        help_text="Ej: SBE, JQA (obligatorio)"
     )
     
     category = models.CharField(

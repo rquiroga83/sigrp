@@ -44,8 +44,14 @@
                     <a href="{% url 'projects:list' %}" class="btn btn-outline-secondary me-2">
                         <i class="bi bi-arrow-left me-2"></i>Volver
                     </a>
+                    <a href="{% url 'projects:edit' project.pk %}" class="btn btn-warning me-2">
+                        <i class="bi bi-pencil me-2"></i>Editar Proyecto
+                    </a>
+                    <a href="{% url 'projects:manage_allocations' project.pk %}" class="btn btn-primary me-2">
+                        <i class="bi bi-calendar-check me-2"></i>Gestionar Asignaciones
+                    </a>
                     <a href="{% url 'projects:assign_resources' project.pk %}" class="btn btn-outline-success me-2">
-                        <i class="bi bi-people me-2"></i>Asignar Recursos
+                        <i class="bi bi-people me-2"></i>Asignar a Tareas
                     </a>
                     <a href="/admin/projects/project/{{ project.pk }}/change/" class="btn btn-outline-primary">
                         <i class="bi bi-pencil me-2"></i>Editar
@@ -110,13 +116,17 @@
                 <div class="card-body">
                     <h5 class="card-title mb-3">Progreso del Proyecto</h5>
                     <div class="progress" style="height: 30px;">
+                        {% widthratio project.completion_percentage 1 1 as progress_width %}
+                        {% if progress_width > 100 %}
+                            {% widthratio 100 1 1 as progress_width %}
+                        {% endif %}
                         <div class="progress-bar {% if project.completion_percentage >= 100 %}bg-success{% elif project.completion_percentage >= 75 %}bg-info{% elif project.completion_percentage >= 50 %}bg-warning{% else %}bg-secondary{% endif %}" 
                              role="progressbar" 
-                             style="width: {{ project.completion_percentage }}%"
+                             style="width: {{ progress_width }}%"
                              aria-valuenow="{{ project.completion_percentage }}" 
                              aria-valuemin="0" 
                              aria-valuemax="100">
-                            <span class="fs-6">{{ project.completion_percentage|floatformat:1 }}% Completado</span>
+                            <span class="fs-6 fw-bold">{{ project.completion_percentage|floatformat:0 }}% Completado</span>
                         </div>
                     </div>
                 </div>
@@ -232,6 +242,14 @@
                                                     {% else %}
                                                         <span class="badge bg-secondary">{{ task.get_status_display }}</span>
                                                     {% endif %}
+                                                    <button class="btn btn-sm btn-outline-primary ms-2 change-status-btn" 
+                                                            data-task-id="{{ task.pk }}"
+                                                            data-task-title="{{ task.title }}"
+                                                            data-task-status="{{ task.status }}"
+                                                            data-project-id="{{ project.pk }}"
+                                                            title="Cambiar estado">
+                                                        <i class="bi bi-arrow-repeat me-1"></i>Cambiar Estado
+                                                    </button>
                                                     <div class="small mt-1">
                                                         {{ task.completion_percentage|floatformat:0 }}% 
                                                         ({{ task.logged_hours }}/{{ task.estimated_hours }}h)
@@ -411,4 +429,87 @@
         </div>
     </div>
 </div>
+
+<!-- Modal único para cambiar estado de tarea -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Estado de Tarea</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="statusForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Tarea:</strong></label>
+                        <p class="text-muted" id="taskTitle"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskStatus" class="form-label">Nuevo Estado</label>
+                        <select class="form-select" name="status" id="taskStatus" required>
+                            <option value="backlog">Backlog</option>
+                            <option value="todo">Por Hacer</option>
+                            <option value="in_progress">En Progreso</option>
+                            <option value="in_review">En Revisión</option>
+                            <option value="blocked">Bloqueado</option>
+                            <option value="completed">Completado</option>
+                            <option value="cancelled">Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
+    const statusForm = document.getElementById('statusForm');
+    const taskTitle = document.getElementById('taskTitle');
+    const taskStatus = document.getElementById('taskStatus');
+    
+    // Manejar clicks en botones de cambio de estado
+    document.querySelectorAll('.change-status-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const taskId = this.dataset.taskId;
+            const title = this.dataset.taskTitle;
+            const status = this.dataset.taskStatus;
+            const projectId = this.dataset.projectId;
+            
+            // Actualizar contenido del modal
+            taskTitle.textContent = title;
+            taskStatus.value = status;
+            
+            // Actualizar action del formulario
+            statusForm.action = `/projects/${projectId}/tasks/${taskId}/update-status/`;
+            
+            // Mostrar modal
+            statusModal.show();
+        });
+    });
+});
+</script>
+
+<style>
+/* Asegurar que el modal y backdrop tengan el z-index correcto */
+.modal-backdrop {
+    z-index: 9998 !important;
+}
+.modal {
+    z-index: 9999 !important;
+}
+.modal-content {
+    pointer-events: auto !important;
+}
+</style>
+
 {% endblock %}

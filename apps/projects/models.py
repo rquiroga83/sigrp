@@ -1034,7 +1034,7 @@ class Allocation(AuditableModel):
     
     def save(self, *args, **kwargs):
         """Ejecutar validación antes de guardar."""
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
     
     @property

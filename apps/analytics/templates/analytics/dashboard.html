@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Ejecutivo - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-graph-up me-2"></i>Dashboard Ejecutivo</h2>
+            <p class="text-muted">Vista consolidada de métricas clave del negocio</p>
+        </div>
+    </div>
+
+    <!-- Métricas Financieras -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Facturación Total</h6>
+                    <h3>${{ financial_stats.total_billable|floatformat:2 }}</h3>
+                    <small><i class="bi bi-cash-stack"></i> Total facturado</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Utilidad</h6>
+                    <h3>${{ financial_stats.total_profit|floatformat:2 }}</h3>
+                    <small><i class="bi bi-graph-up-arrow"></i> Margen: {{ financial_stats.profit_margin|floatformat:1 }}%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Costos</h6>
+                    <h3>${{ financial_stats.total_cost|floatformat:2 }}</h3>
+                    <small><i class="bi bi-coin"></i> Costo total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Horas Registradas</h6>
+                    <h3>{{ financial_stats.total_hours|floatformat:0 }}</h3>
+                    <small><i class="bi bi-clock"></i> Horas totales</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proyectos y Recursos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-folder me-2"></i>Estado de Proyectos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col">
+                            <h4>{{ projects_stats.total }}</h4>
+                            <small class="text-muted">Total</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-success">{{ projects_stats.active }}</h4>
+                            <small class="text-muted">Activos</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-info">{{ projects_stats.planning }}</h4>
+                            <small class="text-muted">Planificación</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-primary">{{ projects_stats.completed }}</h4>
+                            <small class="text-muted">Completados</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-warning">{{ projects_stats.on_hold }}</h4>
+                            <small class="text-muted">En Espera</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-people me-2"></i>Estado de Recursos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col">
+                            <h4>{{ resources_stats.total }}</h4>
+                            <small class="text-muted">Total</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-success">{{ resources_stats.available }}</h4>
+                            <small class="text-muted">Disponibles</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-warning">{{ resources_stats.partially_allocated }}</h4>
+                            <small class="text-muted">Parcial</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-danger">{{ resources_stats.fully_allocated }}</h4>
+                            <small class="text-muted">Completo</small>
+                        </div>
+                        <div class="col">
+                            <h4 class="text-secondary">{{ resources_stats.on_leave }}</h4>
+                            <small class="text-muted">Ausentes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proyectos en Riesgo -->
+    {% if projects_at_risk %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Proyectos en Riesgo ({{ projects_at_risk|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-end">Margen</th>
+                                    <th class="text-center">Avance</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in projects_at_risk %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'projects:detail' item.project.pk %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.project.client.name }}</td>
+                                    <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ item.billable|floatformat:2 }}</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-danger">{{ item.margin|floatformat:1 }}%</span>
+                                    </td>
+                                    <td class="text-center">{{ item.completion|floatformat:0 }}%</td>
+                                    <td>
+                                        {% if item.is_over_budget %}
+                                        <span class="badge bg-danger">Sobre Presupuesto</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Bajo Margen</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Proyectos Activos y Tareas -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-lightning me-2"></i>Proyectos Activos - Top 10</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-end">Margen</th>
+                                    <th class="text-center">Avance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in active_projects %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'projects:detail' item.project.pk %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.project.client.name }}</td>
+                                    <td class="text-end">${{ item.billable|floatformat:2 }}</td>
+                                    <td class="text-end">
+                                        {% if item.margin < 15 %}
+                                        <span class="badge bg-danger">{{ item.margin|floatformat:1 }}%</span>
+                                        {% elif item.margin < 25 %}
+                                        <span class="badge bg-warning text-dark">{{ item.margin|floatformat:1 }}%</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ item.margin|floatformat:1 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ item.completion }}%;"
+                                                 aria-valuenow="{{ item.completion }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                                {{ item.completion|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        No hay proyectos activos
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-check2-square me-2"></i>Estado de Tareas</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Backlog
+                            <span class="badge bg-secondary rounded-pill">{{ tasks_stats.backlog }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            En Progreso
+                            <span class="badge bg-primary rounded-pill">{{ tasks_stats.in_progress }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            En Revisión
+                            <span class="badge bg-info rounded-pill">{{ tasks_stats.in_review }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Bloqueadas
+                            <span class="badge bg-danger rounded-pill">{{ tasks_stats.blocked }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Completadas
+                            <span class="badge bg-success rounded-pill">{{ tasks_stats.completed }}</span>
+                        </li>
+                    </ul>
+                    <div class="mt-3 text-center">
+                        <h4>{{ tasks_stats.total }}</h4>
+                        <small class="text-muted">Total de Tareas</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Mood y Allocations -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-emoji-smile me-2"></i>Team Mood (últimos 7 días)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h3>
+                            {% if standups_stats.avg_sentiment >= 0.6 %}
+                            <i class="bi bi-emoji-smile-fill text-success"></i>
+                            {% elif standups_stats.avg_sentiment >= 0.3 %}
+                            <i class="bi bi-emoji-neutral-fill text-warning"></i>
+                            {% else %}
+                            <i class="bi bi-emoji-frown-fill text-danger"></i>
+                            {% endif %}
+                            {{ standups_stats.avg_sentiment|floatformat:2 }}
+                        </h3>
+                        <small class="text-muted">Sentimiento Promedio</small>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <h5 class="text-success">{{ standups_stats.positive }}</h5>
+                            <small>Positivos</small>
+                        </div>
+                        <div class="col-3">
+                            <h5 class="text-info">{{ standups_stats.neutral }}</h5>
+                            <small>Neutrales</small>
+                        </div>
+                        <div class="col-3">
+                            <h5 class="text-warning">{{ standups_stats.negative }}</h5>
+                            <small>Negativos</small>
+                        </div>
+                        <div class="col-3">
+                            <h5 class="text-danger">{{ standups_stats.very_negative }}</h5>
+                            <small>Muy Negativos</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <p class="mb-0"><strong>{{ standups_stats.total_recent }}</strong> standups registrados</p>
+                        <a href="{% url 'analytics:team_mood' %}" class="btn btn-sm btn-outline-primary mt-2">
+                            Ver Detalle
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-calendar-check me-2"></i>Asignaciones Activas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <h3>{{ allocations_stats.total_active }}</h3>
+                        <small class="text-muted">Asignaciones Vigentes</small>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <h4>{{ allocations_stats.total_hours_per_week }}</h4>
+                        <small class="text-muted">Horas Asignadas por Semana</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enlaces Rápidos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="mb-3"><i class="bi bi-link-45deg me-2"></i>Reportes Detallados</h5>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'analytics:resources_utilization' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-people me-1"></i>Utilización de Recursos
+                        </a>
+                        <a href="{% url 'analytics:financial_report' %}" class="btn btn-outline-success">
+                            <i class="bi bi-currency-dollar me-1"></i>Reporte Financiero
+                        </a>
+                        <a href="{% url 'analytics:team_mood' %}" class="btn btn-outline-info">
+                            <i class="bi bi-emoji-smile me-1"></i>Análisis de Team Mood
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

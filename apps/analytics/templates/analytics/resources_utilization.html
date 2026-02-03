@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Utilización de Recursos - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-people me-2"></i>Utilización de Recursos</h2>
+            <p class="text-muted">Análisis de uso de recursos en los últimos 30 días</p>
+            <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Métricas Agregadas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Utilización Promedio</h6>
+                    <h3>{{ avg_utilization|floatformat:1 }}%</h3>
+                    <small><i class="bi bi-speedometer2"></i> Todos los recursos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Costo Total</h6>
+                    <h3>${{ total_cost|floatformat:2 }}</h3>
+                    <small><i class="bi bi-coin"></i> Últimos 30 días</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Facturación</h6>
+                    <h3>${{ total_billable|floatformat:2 }}</h3>
+                    <small><i class="bi bi-cash-stack"></i> Últimos 30 días</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Utilidad</h6>
+                    <h3>${{ total_profit|floatformat:2 }}</h3>
+                    <small><i class="bi bi-graph-up-arrow"></i> Últimos 30 días</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categorías de Utilización -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="bi bi-arrow-down me-2"></i>Sub-Utilizados (&lt;60%)</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-warning">{{ underutilized|length }}</h3>
+                    <p class="mb-0">recursos con capacidad disponible</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="bi bi-check-circle me-2"></i>Óptimo (60-90%)</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-success">{{ optimal|length }}</h3>
+                    <p class="mb-0">recursos con utilización ideal</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Sobre-Utilizados (&gt;90%)</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-danger">{{ overutilized|length }}</h3>
+                    <p class="mb-0">recursos en riesgo de burnout</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla Detallada de Recursos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-table me-2"></i>Detalle por Recurso</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Recurso</th>
+                                    <th>Rol</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-end">Horas</th>
+                                    <th class="text-center">Utilización</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-end">Margen</th>
+                                    <th class="text-center">Proyectos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in resources_data %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'resources:detail' item.resource.pk %}">
+                                            {{ item.resource.full_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.resource.primary_role.name }}</td>
+                                    <td class="text-center">
+                                        {% if item.status == 'available' %}
+                                        <span class="badge bg-success">Disponible</span>
+                                        {% elif item.status == 'partially_allocated' %}
+                                        <span class="badge bg-warning text-dark">Parcial</span>
+                                        {% elif item.status == 'fully_allocated' %}
+                                        <span class="badge bg-danger">Completo</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ item.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ item.hours_logged|floatformat:1 }}</td>
+                                    <td class="text-center">
+                                        <div class="progress" style="height: 25px; min-width: 100px;">
+                                            {% if item.utilization < 60 %}
+                                            <div class="progress-bar bg-warning" role="progressbar" 
+                                                 style="width: {{ item.utilization }}%;"
+                                                 aria-valuenow="{{ item.utilization }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                                {{ item.utilization|floatformat:1 }}%
+                                            </div>
+                                            {% elif item.utilization <= 90 %}
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: {{ item.utilization }}%;"
+                                                 aria-valuenow="{{ item.utilization }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                                {{ item.utilization|floatformat:1 }}%
+                                            </div>
+                                            {% else %}
+                                            <div class="progress-bar bg-danger" role="progressbar" 
+                                                 style="width: 100%;"
+                                                 aria-valuenow="{{ item.utilization }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                                {{ item.utilization|floatformat:1 }}%
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ item.billable|floatformat:2 }}</td>
+                                    <td class="text-end">
+                                        {% if item.margin < 15 %}
+                                        <span class="badge bg-danger">{{ item.margin|floatformat:1 }}%</span>
+                                        {% elif item.margin < 25 %}
+                                        <span class="badge bg-warning text-dark">{{ item.margin|floatformat:1 }}%</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ item.margin|floatformat:1 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ item.active_projects }}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted">
+                                        No hay recursos activos
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recursos Sub-Utilizados -->
+    {% if underutilized %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="bi bi-info-circle me-2"></i>Recursos con Capacidad Disponible</h5>
+                </div>
+                <div class="card-body">
+                    <p>Los siguientes recursos tienen menos del 60% de utilización y podrían asignarse a nuevos proyectos:</p>
+                    <div class="row">
+                        {% for item in underutilized %}
+                        <div class="col-md-4 mb-2">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>{{ item.resource.full_name }}</h6>
+                                    <p class="mb-1">
+                                        <small>{{ item.resource.primary_role.name }}</small>
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Utilización:</strong> {{ item.utilization|floatformat:1 }}%<br>
+                                        <strong>Proyectos:</strong> {{ item.active_projects }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recursos Sobre-Utilizados -->
+    {% if overutilized %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Recursos en Riesgo</h5>
+                </div>
+                <div class="card-body">
+                    <p>Los siguientes recursos superan el 90% de utilización y requieren atención:</p>
+                    <div class="row">
+                        {% for item in overutilized %}
+                        <div class="col-md-4 mb-2">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>{{ item.resource.full_name }}</h6>
+                                    <p class="mb-1">
+                                        <small>{{ item.resource.primary_role.name }}</small>
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Utilización:</strong> <span class="text-danger">{{ item.utilization|floatformat:1 }}%</span><br>
+                                        <strong>Horas:</strong> {{ item.hours_logged|floatformat:1 }}h<br>
+                                        <strong>Proyectos:</strong> {{ item.active_projects }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

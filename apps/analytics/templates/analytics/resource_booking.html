@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reserva de Recursos - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-calendar-check me-2"></i>Reserva de Recursos</h2>
+            <p class="text-muted">Visualiza las asignaciones de recursos en un rango de fechas</p>
+            <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="start_date" class="form-label">Fecha Inicio</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ start_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="end_date" class="form-label">Fecha Fin</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ end_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="resource" class="form-label">Recurso</label>
+                            <select class="form-select" id="resource" name="resource">
+                                <option value="">Todos los recursos</option>
+                                {% for res in all_resources %}
+                                    <option value="{{ res.id }}" {% if res.id == selected_resource_id %}selected{% endif %}>
+                                        {{ res.full_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label d-block">&nbsp;</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show_inactive" name="show_inactive" 
+                                       {% if show_inactive %}checked{% endif %}>
+                                <label class="form-check-label" for="show_inactive">
+                                    Mostrar inactivas
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search me-1"></i>Filtrar
+                            </button>
+                            <a href="{% url 'analytics:resource_booking' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Limpiar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen de Capacidad -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="text-muted">Recursos Activos</h6>
+                    <h3 class="text-info"><i class="bi bi-people-fill me-2"></i>{{ total_resources }}</h3>
+                    <small>en el período seleccionado</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="text-muted">Totalmente Asignados</h6>
+                    <h3 class="text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ fully_assigned }}</h3>
+                    <small>≥80% capacidad</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="text-muted">Parcialmente Asignados</h6>
+                    <h3 class="text-warning"><i class="bi bi-check-circle-fill me-2"></i>{{ partially_assigned }}</h3>
+                    <small>50-79% capacidad</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-muted">Disponibles</h6>
+                    <h3 class="text-success"><i class="bi bi-battery-half me-2"></i>{{ available }}</h3>
+                    <small>&lt;50% capacidad</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Recursos y Asignaciones -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-table me-2"></i>Detalle de Asignaciones</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 20%;">Recurso</th>
+                                    <th style="width: 15%;">Rol</th>
+                                    <th style="width: 35%;">Asignaciones</th>
+                                    <th style="width: 15%;" class="text-center">Total h/semana</th>
+                                    <th style="width: 15%;" class="text-center">% Capacidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in resources_data %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-person-circle fs-4 me-2"></i>
+                                                <div>
+                                                    <strong>{{ data.resource.full_name }}</strong><br>
+                                                    <small class="text-muted">{{ data.resource.status|title }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ data.resource.primary_role.name }}</span>
+                                        </td>
+                                        <td>
+                                            {% if data.allocations %}
+                                                {% for alloc_data in data.allocations %}
+                                                    <div class="mb-2 p-2 border-start border-3 {% if alloc_data.allocation.is_active %}border-primary{% else %}border-secondary{% endif %} bg-light">
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div>
+                                                                <strong>
+                                                                    <i class="bi bi-folder me-1"></i>
+                                                                    {{ alloc_data.allocation.project.name }}
+                                                                </strong>
+                                                                {% if not alloc_data.allocation.is_active %}
+                                                                    <span class="badge bg-secondary ms-1">Inactiva</span>
+                                                                {% endif %}
+                                                                <br>
+                                                                <small class="text-muted">
+                                                                    <i class="bi bi-calendar-range me-1"></i>
+                                                                    {{ alloc_data.allocation.start_date|date:"d/m/Y" }} 
+                                                                    → 
+                                                                    {{ alloc_data.allocation.end_date|date:"d/m/Y" }}
+                                                                    {% if alloc_data.days_remaining > 0 %}
+                                                                        <span class="ms-2 badge bg-info">{{ alloc_data.days_remaining }} días restantes</span>
+                                                                    {% elif alloc_data.days_remaining == 0 %}
+                                                                        <span class="ms-2 badge bg-warning">Termina hoy</span>
+                                                                    {% else %}
+                                                                        <span class="ms-2 badge bg-secondary">Finalizada</span>
+                                                                    {% endif %}
+                                                                </small>
+                                                            </div>
+                                                            <div class="text-end">
+                                                                <strong class="text-primary">{{ alloc_data.allocation.hours_per_week }}h/sem</strong><br>
+                                                                <small class="text-muted">{{ alloc_data.percentage|floatformat:0 }}%</small>
+                                                            </div>
+                                                        </div>
+                                                        {% if alloc_data.allocation.notes %}
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-journal-text me-1"></i>
+                                                                {{ alloc_data.allocation.notes|truncatewords:15 }}
+                                                            </small>
+                                                        {% endif %}
+                                                        <!-- Barra de progreso individual -->
+                                                        <div class="progress mt-1" style="height: 6px;">
+                                                            <div class="progress-bar 
+                                                                {% if alloc_data.percentage >= 50 %}bg-success{% else %}bg-info{% endif %}" 
+                                                                role="progressbar" 
+                                                                style="width: {{ alloc_data.percentage|floatformat:0 }}%;" 
+                                                                aria-valuenow="{{ alloc_data.percentage }}" 
+                                                                aria-valuemin="0" 
+                                                                aria-valuemax="100">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted"><i>Sin asignaciones en este período</i></span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <strong>{{ data.total_hours_per_week|floatformat:1 }}</strong> / {{ data.capacity|floatformat:0 }}h
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="mb-2">
+                                                {% if data.status == 'overbooked' %}
+                                                    <span class="badge bg-danger fs-6">
+                                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                        {{ data.occupancy_percentage|floatformat:0 }}%
+                                                    </span>
+                                                {% elif data.status == 'optimal' %}
+                                                    <span class="badge bg-success fs-6">
+                                                        <i class="bi bi-check-circle-fill me-1"></i>
+                                                        {{ data.occupancy_percentage|floatformat:0 }}%
+                                                    </span>
+                                                {% elif data.status == 'partial' %}
+                                                    <span class="badge bg-warning fs-6">
+                                                        <i class="bi bi-dash-circle-fill me-1"></i>
+                                                        {{ data.occupancy_percentage|floatformat:0 }}%
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary fs-6">
+                                                        <i class="bi bi-battery-half me-1"></i>
+                                                        {{ data.occupancy_percentage|floatformat:0 }}%
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                            <!-- Barra de progreso de capacidad -->
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar 
+                                                    {% if data.occupancy_percentage >= 100 %}bg-danger
+                                                    {% elif data.occupancy_percentage >= 80 %}bg-success
+                                                    {% elif data.occupancy_percentage >= 50 %}bg-warning
+                                                    {% else %}bg-secondary
+                                                    {% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {% if data.occupancy_percentage > 100 %}100{% else %}{{ data.occupancy_percentage|floatformat:0 }}{% endif %}%;" 
+                                                    aria-valuenow="{{ data.occupancy_percentage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-5">
+                                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                            <p>No se encontraron recursos con los filtros seleccionados</p>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Leyenda de Estados</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <span class="badge bg-danger me-2">≥100%</span>
+                            <strong>Sobreasignado:</strong> El recurso tiene más de 40h/semana asignadas (riesgo de burnout)
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-success me-2">80-99%</span>
+                            <strong>Óptimo:</strong> El recurso está bien utilizado (32-39.9h/semana)
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-warning me-2">50-79%</span>
+                            <strong>Parcial:</strong> El recurso tiene capacidad disponible (20-31.9h/semana)
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-secondary me-2">&lt;50%</span>
+                            <strong>Disponible:</strong> El recurso tiene mucha capacidad libre (&lt;20h/semana)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

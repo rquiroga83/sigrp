@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mis Registros de Tiempo - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-clock-history me-2"></i>Registro de Horas</h2>
+            <p class="text-muted">Gestiona tus registros de tiempo trabajado en proyectos y tareas</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'projects:create_timelog' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Registrar Horas
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-funnel me-2"></i>Filtros</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="resource_id" class="form-label">Recurso</label>
+                            <select name="resource_id" id="resource_id" class="form-select">
+                                <option value="">Todos los recursos</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.pk }}" {% if filters.resource_id == resource.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ resource.full_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="project_id" class="form-label">Proyecto</label>
+                            <select name="project_id" id="project_id" class="form-select">
+                                <option value="">Todos los proyectos</option>
+                                {% for project in projects %}
+                                <option value="{{ project.pk }}" {% if filters.project_id == project.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ project.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">Desde</label>
+                            <input type="date" name="date_from" id="date_from" class="form-control" 
+                                   value="{{ filters.date_from|default:'' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">Hasta</label>
+                            <input type="date" name="date_to" id="date_to" class="form-control" 
+                                   value="{{ filters.date_to|default:'' }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-search me-1"></i>Filtrar
+                            </button>
+                            <a href="{% url 'projects:my_timelogs' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Horas</h6>
+                    <h3>{{ total_hours|floatformat:2 }}</h3>
+                    <small><i class="bi bi-clock"></i> Horas registradas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Costo Interno</h6>
+                    <h3>${{ total_cost|floatformat:2 }}</h3>
+                    <small><i class="bi bi-coin"></i> Costo total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Monto Facturable</h6>
+                    <h3>${{ total_billable|floatformat:2 }}</h3>
+                    <small><i class="bi bi-cash-stack"></i> Total a facturar</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de TimeLogs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-list-ul me-2"></i>Registros de Tiempo ({{ timelogs|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Recurso</th>
+                                    <th>Proyecto</th>
+                                    <th>Tarea</th>
+                                    <th class="text-end">Horas</th>
+                                    <th>Descripción</th>
+                                    <th class="text-center">Facturable</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in timelogs %}
+                                <tr>
+                                    <td>{{ log.date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'resources:detail' log.resource.pk %}">
+                                            {{ log.resource.full_name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'projects:detail' log.task.project.pk %}">
+                                            {{ log.task.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {% if log.task.stage %}[{{ log.task.stage.name }}]{% endif %}
+                                            {{ log.task.title }}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{{ log.hours|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ log.description|truncatewords:10 }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if log.is_billable %}
+                                        <span class="badge bg-success">Sí</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">${{ log.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ log.billable_amount|floatformat:2 }}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'projects:edit_timelog' log.pk %}" 
+                                               class="btn btn-outline-warning"
+                                               title="Editar">
+                                                <i class="bi bi-pencil me-1"></i>Editar
+                                            </a>
+                                            <form method="POST" 
+                                                  action="{% url 'projects:delete_timelog' log.pk %}"
+                                                  style="display: inline;"
+                                                  onsubmit="return confirm('¿Eliminar este registro de {{ log.hours }}h?');">
+                                                {% csrf_token %}
+                                                <button type="submit" 
+                                                        class="btn btn-outline-danger"
+                                                        title="Eliminar">
+                                                    <i class="bi bi-trash me-1"></i>Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                        <p class="mt-2">No hay registros de tiempo</p>
+                                        <a href="{% url 'projects:create_timelog' %}" class="btn btn-primary">
+                                            <i class="bi bi-plus-circle me-1"></i>Crear Primer Registro
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

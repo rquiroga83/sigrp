@@ -167,6 +167,8 @@ python manage.py runserver
 
 $env:Path += ";$env:USERPROFILE\.local\bin"; uv run python manage.py runserver
 
+uv run python manage.py runserver
+
 # Producción (con Gunicorn)
 gunicorn config.wsgi:application --bind 0.0.0.0:8000
 ```

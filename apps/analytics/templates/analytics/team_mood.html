@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Team Mood - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-emoji-smile me-2"></i>Análisis de Team Mood</h2>
+            <p class="text-muted">Seguimiento de sentimiento del equipo (últimos 30 días)</p>
+            <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Métrica General -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h5 class="mb-3">Sentimiento Promedio General</h5>
+                    <h1>
+                        {% if overall_avg >= 0.6 %}
+                        <i class="bi bi-emoji-smile-fill text-success" style="font-size: 3rem;"></i>
+                        {% elif overall_avg >= 0.3 %}
+                        <i class="bi bi-emoji-neutral-fill text-warning" style="font-size: 3rem;"></i>
+                        {% elif overall_avg >= 0 %}
+                        <i class="bi bi-emoji-frown-fill text-danger" style="font-size: 3rem;"></i>
+                        {% else %}
+                        <i class="bi bi-emoji-angry-fill text-danger" style="font-size: 3rem;"></i>
+                        {% endif %}
+                    </h1>
+                    <h3>{{ overall_avg|floatformat:2 }}</h3>
+                    <p class="text-muted">
+                        {% if overall_avg >= 0.6 %}
+                        El equipo presenta un sentimiento general positivo
+                        {% elif overall_avg >= 0.3 %}
+                        El equipo presenta un sentimiento neutral
+                        {% else %}
+                        Se requiere atención al sentimiento del equipo
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mood por Proyecto -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-folder me-2"></i>Sentimiento por Proyecto</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th class="text-center">Sentimiento</th>
+                                    <th class="text-center">Standups</th>
+                                    <th class="text-center">Positivos</th>
+                                    <th class="text-center">Neutrales</th>
+                                    <th class="text-center">Negativos</th>
+                                    <th class="text-center">Muy Negativos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in projects_mood %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'projects:detail' item.project.pk %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.project.client.name }}</td>
+                                    <td class="text-center">
+                                        {% if item.avg_sentiment >= 0.6 %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-emoji-smile-fill"></i>
+                                            {{ item.avg_sentiment|floatformat:2 }}
+                                        </span>
+                                        {% elif item.avg_sentiment >= 0.3 %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-emoji-neutral-fill"></i>
+                                            {{ item.avg_sentiment|floatformat:2 }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-emoji-frown-fill"></i>
+                                            {{ item.avg_sentiment|floatformat:2 }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ item.total_standups }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">{{ item.mood_counts.positive }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ item.mood_counts.neutral }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark">{{ item.mood_counts.negative }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-danger">{{ item.mood_counts.very_negative }}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">
+                                        No hay datos de standups para proyectos activos
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mood por Recurso -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-person me-2"></i>Sentimiento por Recurso</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Recurso</th>
+                                    <th class="text-center">Sentimiento Promedio</th>
+                                    <th class="text-center">Standups Registrados</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in resources_mood %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'resources:detail' item.resource.pk %}">
+                                            {{ item.resource.full_name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.avg_sentiment >= 0.6 %}
+                                        <h5>
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-emoji-smile-fill"></i>
+                                                {{ item.avg_sentiment|floatformat:2 }}
+                                            </span>
+                                        </h5>
+                                        {% elif item.avg_sentiment >= 0.3 %}
+                                        <h5>
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-emoji-neutral-fill"></i>
+                                                {{ item.avg_sentiment|floatformat:2 }}
+                                            </span>
+                                        </h5>
+                                        {% elif item.avg_sentiment >= 0 %}
+                                        <h5>
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-emoji-frown-fill"></i>
+                                                {{ item.avg_sentiment|floatformat:2 }}
+                                            </span>
+                                        </h5>
+                                        {% else %}
+                                        <h5>
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-emoji-angry-fill"></i>
+                                                {{ item.avg_sentiment|floatformat:2 }}
+                                            </span>
+                                        </h5>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ item.total_standups }}</span>
+                                    </td>
+                                    <td>
+                                        {% if item.avg_sentiment >= 0.6 %}
+                                        <span class="badge bg-success">Positivo</span>
+                                        {% elif item.avg_sentiment >= 0.3 %}
+                                        <span class="badge bg-warning text-dark">Neutral</span>
+                                        {% elif item.avg_sentiment >= 0 %}
+                                        <span class="badge bg-danger">Requiere Atención</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Crítico</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        No hay datos de standups para recursos activos
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tendencia Temporal -->
+    {% if mood_by_day %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-graph-up me-2"></i>Tendencia de Sentimiento</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Evolución del sentimiento promedio por día</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-center">Sentimiento Promedio</th>
+                                    <th class="text-center">Standups</th>
+                                    <th>Tendencia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in mood_by_day %}
+                                <tr>
+                                    <td>{{ day.date|date:"d/m/Y (D)" }}</td>
+                                    <td class="text-center">
+                                        {% if day.avg_sentiment >= 0.6 %}
+                                        <span class="badge bg-success">{{ day.avg_sentiment|floatformat:2 }}</span>
+                                        {% elif day.avg_sentiment >= 0.3 %}
+                                        <span class="badge bg-warning text-dark">{{ day.avg_sentiment|floatformat:2 }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">{{ day.avg_sentiment|floatformat:2 }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ day.count }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            {% if day.avg_sentiment >= 0.6 %}
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: {{ day.avg_sentiment|floatformat:0 }}%;"
+                                                 aria-valuenow="{{ day.avg_sentiment }}" 
+                                                 aria-valuemin="0" aria-valuemax="1">
+                                            </div>
+                                            {% elif day.avg_sentiment >= 0.3 %}
+                                            <div class="progress-bar bg-warning" role="progressbar" 
+                                                 style="width: {{ day.avg_sentiment|floatformat:0 }}%;"
+                                                 aria-valuenow="{{ day.avg_sentiment }}" 
+                                                 aria-valuemin="0" aria-valuemax="1">
+                                            </div>
+                                            {% else %}
+                                            <div class="progress-bar bg-danger" role="progressbar" 
+                                                 style="width: {{ day.avg_sentiment|floatformat:0 }}%;"
+                                                 aria-valuenow="{{ day.avg_sentiment }}" 
+                                                 aria-valuemin="0" aria-valuemax="1">
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

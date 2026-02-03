@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Editar{% else %}Nuevo{% endif %} Registro de Tiempo - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                <i class="bi bi-clock me-2"></i>
+                {% if is_edit %}Editar{% else %}Nuevo{% endif %} Registro de Tiempo
+            </h2>
+            <p class="text-muted">{% if is_edit %}Modifica{% else %}Registra{% endif %} las horas trabajadas en un proyecto</p>
+            <a href="{% url 'projects:my_timelogs' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al Listado
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" id="timelogForm">
+                        {% csrf_token %}
+                        
+                        <!-- Recurso -->
+                        <div class="mb-3">
+                            <label for="resource_id" class="form-label">
+                                Recurso <span class="text-danger">*</span>
+                            </label>
+                            <select name="resource_id" id="resource_id" class="form-select" required>
+                                <option value="">Seleccione un recurso</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.pk }}" 
+                                        {% if is_edit and timelog.resource.pk == resource.pk %}selected{% endif %}>
+                                    {{ resource.full_name }} - {{ resource.primary_role.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Persona que realizó el trabajo
+                            </small>
+                        </div>
+
+                        <!-- Proyecto -->
+                        <div class="mb-3">
+                            <label for="project_id" class="form-label">
+                                Proyecto <span class="text-danger">*</span>
+                            </label>
+                            <select name="project_id" id="project_id" class="form-select" required>
+                                <option value="">Seleccione un proyecto</option>
+                                {% for project in projects %}
+                                <option value="{{ project.pk }}"
+                                        {% if is_edit and timelog.task.project.pk == project.pk %}selected{% endif %}>
+                                    {{ project.name }} - {{ project.client_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Tarea -->
+                        <div class="mb-3">
+                            <label for="task_id" class="form-label">
+                                Tarea <span class="text-danger">*</span>
+                            </label>
+                            <select name="task_id" id="task_id" class="form-select" required>
+                                <option value="">Seleccione primero un proyecto</option>
+                                {% if is_edit and tasks %}
+                                {% for task in tasks %}
+                                <option value="{{ task.pk }}"
+                                        {% if timelog.task.pk == task.pk %}selected{% endif %}>
+                                    {% if task.stage %}[{{ task.stage.name }}]{% endif %} {{ task.title }}
+                                </option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Tarea específica en la que trabajaste
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <!-- Fecha -->
+                            <div class="col-md-6 mb-3">
+                                <label for="date" class="form-label">
+                                    Fecha <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" 
+                                       name="date" 
+                                       id="date" 
+                                       class="form-control" 
+                                       value="{% if is_edit %}{{ timelog.date|date:'Y-m-d' }}{% else %}{{ today }}{% endif %}"
+                                       required>
+                            </div>
+
+                            <!-- Horas -->
+                            <div class="col-md-6 mb-3">
+                                <label for="hours" class="form-label">
+                                    Horas <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" 
+                                       name="hours" 
+                                       id="hours" 
+                                       class="form-control" 
+                                       step="0.25" 
+                                       min="0.25" 
+                                       max="24"
+                                       value="{% if is_edit %}{{ timelog.hours }}{% endif %}"
+                                       placeholder="Ej: 8.0"
+                                       required>
+                                <small class="form-text text-muted">
+                                    Máximo 24 horas por día
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">
+                                Descripción del Trabajo
+                            </label>
+                            <textarea name="description" 
+                                      id="description" 
+                                      class="form-control" 
+                                      rows="3"
+                                      placeholder="¿Qué trabajo realizaste?">{% if is_edit %}{{ timelog.description }}{% endif %}</textarea>
+                        </div>
+
+                        <!-- Facturable -->
+                        <div class="mb-3">
+                            <label class="form-label d-block">Facturable</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       name="is_billable" 
+                                       id="is_billable"
+                                       {% if not is_edit or timelog.is_billable %}checked{% endif %}>
+                                <label class="form-check-label" for="is_billable">
+                                    Este tiempo es facturable al cliente
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Notas -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notas Adicionales</label>
+                            <textarea name="notes" 
+                                      id="notes" 
+                                      class="form-control" 
+                                      rows="2"
+                                      placeholder="Observaciones, bloqueadores, etc.">{% if is_edit %}{{ timelog.notes }}{% endif %}</textarea>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'projects:my_timelogs' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>
+                                {% if is_edit %}Actualizar{% else %}Crear{% endif %} Registro
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de cálculo automático -->
+            {% if is_edit %}
+            <div class="card mt-3">
+                <div class="card-body bg-light">
+                    <h6><i class="bi bi-calculator me-2"></i>Cálculos Automáticos</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <small class="text-muted">Costo Interno</small>
+                            <p class="mb-0"><strong>${{ timelog.cost|floatformat:2 }}</strong></p>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Monto Facturable</small>
+                            <p class="mb-0"><strong>${{ timelog.billable_amount|floatformat:2 }}</strong></p>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Margen</small>
+                            <p class="mb-0">
+                                <strong>
+                                    {% widthratio timelog.billable_amount 1 1 as billable %}
+                                    {% if billable > 0 %}
+                                    {{ timelog.cost|floatformat:2 }} / {{ billable|floatformat:2 }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </strong>
+                            </p>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">
+                        <i class="bi bi-info-circle"></i>
+                        Estos valores se calculan automáticamente basándose en el costo interno del recurso y la tarifa del rol.
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Cargar tareas cuando se selecciona un proyecto
+document.getElementById('project_id').addEventListener('change', function() {
+    const projectId = this.value;
+    const taskSelect = document.getElementById('task_id');
+    
+    // Limpiar opciones
+    taskSelect.innerHTML = '<option value="">Cargando tareas...</option>';
+    taskSelect.disabled = true;
+    
+    if (projectId) {
+        // Hacer petición AJAX para obtener tareas
+        fetch(`/projects/api/projects/${projectId}/tasks/`)
+            .then(response => response.json())
+            .then(data => {
+                taskSelect.innerHTML = '<option value="">Seleccione una tarea</option>';
+                data.tasks.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = task.id;
+                    option.textContent = task.stage__name ? 
+                        `[${task.stage__name}] ${task.title}` : 
+                        task.title;
+                    taskSelect.appendChild(option);
+                });
+                taskSelect.disabled = false;
+                
+                // Si estamos editando, reseleccionar la tarea actual
+                {% if is_edit %}
+                const currentTaskId = {{ timelog.task.pk }};
+                taskSelect.value = currentTaskId;
+                {% endif %}
+            })
+            .catch(error => {
+                console.error('Error cargando tareas:', error);
+                taskSelect.innerHTML = '<option value="">Error al cargar tareas</option>';
+            });
+    } else {
+        taskSelect.innerHTML = '<option value="">Seleccione primero un proyecto</option>';
+        taskSelect.disabled = true;
+    }
+});
+
+// Si estamos editando, cargar las tareas del proyecto actual al cargar la página
+{% if is_edit %}
+document.addEventListener('DOMContentLoaded', function() {
+    const projectSelect = document.getElementById('project_id');
+    if (projectSelect.value) {
+        // Habilitar el selector de tareas y mantener las tareas cargadas desde el servidor
+        document.getElementById('task_id').disabled = false;
+    }
+});
+{% endif %}
+
+// Validar horas
+document.getElementById('timelogForm').addEventListener('submit', function(e) {
+    const hours = parseFloat(document.getElementById('hours').value);
+    if (hours <= 0 || hours > 24) {
+        e.preventDefault();
+        alert('Las horas deben estar entre 0.25 y 24');
+        return false;
+    }
+});
+</script>
+{% endblock %}

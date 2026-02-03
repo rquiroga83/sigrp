@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte Financiero - SIGRP{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-currency-dollar me-2"></i>Reporte Financiero</h2>
+            <p class="text-muted">Consolidación financiera por tipo de proyecto y rol</p>
+            <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Comparación Fixed Price vs T&M -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="bi bi-tag me-2"></i>Fixed Price Projects</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <h6 class="text-muted">Proyectos</h6>
+                            <h4>{{ fixed_stats.count }}</h4>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-muted">Presupuesto Total</h6>
+                            <h4>${{ fixed_stats.total_budget|floatformat:2 }}</h4>
+                        </div>
+                    </div>
+                    <hr>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><strong>Costo:</strong></td>
+                                <td class="text-end">${{ fixed_stats.total_cost|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Facturación:</strong></td>
+                                <td class="text-end">${{ fixed_stats.total_billable|floatformat:2 }}</td>
+                            </tr>
+                            <tr class="table-active">
+                                <td><strong>Utilidad:</strong></td>
+                                <td class="text-end">
+                                    <strong>${{ fixed_stats.profit|floatformat:2 }}</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Margen:</strong></td>
+                                <td class="text-end">
+                                    {% if fixed_stats.margin < 15 %}
+                                    <span class="badge bg-danger">{{ fixed_stats.margin|floatformat:1 }}%</span>
+                                    {% elif fixed_stats.margin < 25 %}
+                                    <span class="badge bg-warning text-dark">{{ fixed_stats.margin|floatformat:1 }}%</span>
+                                    {% else %}
+                                    <span class="badge bg-success">{{ fixed_stats.margin|floatformat:1 }}%</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="bi bi-clock me-2"></i>Time & Materials Projects</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <h6 class="text-muted">Proyectos</h6>
+                            <h4>{{ tm_stats.count }}</h4>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-muted">&nbsp;</h6>
+                            <h4>&nbsp;</h4>
+                        </div>
+                    </div>
+                    <hr>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><strong>Costo:</strong></td>
+                                <td class="text-end">${{ tm_stats.total_cost|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Facturación:</strong></td>
+                                <td class="text-end">${{ tm_stats.total_billable|floatformat:2 }}</td>
+                            </tr>
+                            <tr class="table-active">
+                                <td><strong>Utilidad:</strong></td>
+                                <td class="text-end">
+                                    <strong>${{ tm_stats.profit|floatformat:2 }}</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Margen:</strong></td>
+                                <td class="text-end">
+                                    {% if tm_stats.margin < 15 %}
+                                    <span class="badge bg-danger">{{ tm_stats.margin|floatformat:1 }}%</span>
+                                    {% elif tm_stats.margin < 25 %}
+                                    <span class="badge bg-warning text-dark">{{ tm_stats.margin|floatformat:1 }}%</span>
+                                    {% else %}
+                                    <span class="badge bg-success">{{ tm_stats.margin|floatformat:1 }}%</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proyectos con Mejor Margen -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="bi bi-trophy me-2"></i>Top 5 - Proyectos con Mejor Margen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-end">Utilidad</th>
+                                    <th class="text-end">Margen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in best_margin %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'projects:detail' item.project.pk %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.project.client.name }}</td>
+                                    <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ item.billable|floatformat:2 }}</td>
+                                    <td class="text-end text-success">
+                                        <strong>${{ item.profit|floatformat:2 }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-success">{{ item.margin|floatformat:1 }}%</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">
+                                        No hay proyectos con datos de margen
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proyectos con Peor Margen -->
+    {% if worst_margin %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Top 5 - Proyectos con Peor Margen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-end">Utilidad</th>
+                                    <th class="text-end">Margen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in worst_margin %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'projects:detail' item.project.pk %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.project.client.name }}</td>
+                                    <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ item.billable|floatformat:2 }}</td>
+                                    <td class="text-end {% if item.profit < 0 %}text-danger{% endif %}">
+                                        <strong>${{ item.profit|floatformat:2 }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if item.margin < 15 %}
+                                        <span class="badge bg-danger">{{ item.margin|floatformat:1 }}%</span>
+                                        {% elif item.margin < 25 %}
+                                        <span class="badge bg-warning text-dark">{{ item.margin|floatformat:1 }}%</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ item.margin|floatformat:1 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Rentabilidad por Rol -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-person-badge me-2"></i>Rentabilidad por Rol</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rol</th>
+                                    <th>Categoría</th>
+                                    <th class="text-end">Horas</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Facturación</th>
+                                    <th class="text-end">Utilidad</th>
+                                    <th class="text-end">Margen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in roles_profitability %}
+                                <tr>
+                                    <td><strong>{{ item.role.name }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ item.role.get_category_display }}</span>
+                                    </td>
+                                    <td class="text-end">{{ item.hours|floatformat:1 }}</td>
+                                    <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ item.billable|floatformat:2 }}</td>
+                                    <td class="text-end">
+                                        <strong>${{ item.profit|floatformat:2 }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if item.margin < 15 %}
+                                        <span class="badge bg-danger">{{ item.margin|floatformat:1 }}%</span>
+                                        {% elif item.margin < 25 %}
+                                        <span class="badge bg-warning text-dark">{{ item.margin|floatformat:1 }}%</span>
+                                        {% else %}
+                                        <span class="badge bg-success">{{ item.margin|floatformat:1 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">
+                                        No hay datos de rentabilidad por rol
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

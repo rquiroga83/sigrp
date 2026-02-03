@@ -31,14 +31,39 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'analytics:dashboard' %}">Dashboard</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-graph-up me-1"></i>Analytics
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'analytics:dashboard' %}">
+                                <i class="bi bi-speedometer2 me-1"></i>Dashboard Ejecutivo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:resources_utilization' %}">
+                                <i class="bi bi-people me-1"></i>Utilización de Recursos
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:resource_booking' %}">
+                                <i class="bi bi-calendar-check me-1"></i>Reserva de Recursos
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:financial_report' %}">
+                                <i class="bi bi-currency-dollar me-1"></i>Reporte Financiero
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:team_mood' %}">
+                                <i class="bi bi-emoji-smile me-1"></i>Team Mood
+                            </a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'projects:list' %}">Proyectos</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'resources:list' %}">Recursos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'projects:my_timelogs' %}">
+                            <i class="bi bi-clock-history me-1"></i>Mis Horas
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'standups:list' %}">Standups</a>
