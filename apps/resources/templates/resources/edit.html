@@ -1,0 +1,640 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar Recurso - SIGRP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .field-group {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .field-group h5 {
+        color: #495057;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    .help-text-custom {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    .skill-level-indicator {
+        display: flex;
+        gap: 0.25rem;
+        margin-top: 0.5rem;
+    }
+    .skill-level-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #dee2e6;
+    }
+    .skill-level-dot.active {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">
+                        <i class="bi bi-person-gear me-2"></i>Editar Recurso: {{ resource.full_name }}
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Modifica la información del recurso humano. Los campos con
+                        <span class="text-danger">*</span> son obligatorios.
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'resources:detail' resource.pk %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-eye me-2"></i>Ver Detalle
+                    </a>
+                    <a href="{% url 'resources:list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data" id="resourceForm">
+                        {% csrf_token %}
+
+                        <!-- Información Personal -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-person me-2"></i>Información Personal</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.employee_id.id_for_label }}" class="form-label required-field">
+                                            ID de Empleado
+                                        </label>
+                                        {{ form.employee_id }}
+                                        {% if form.employee_id.help_text %}
+                                        <div class="help-text-custom">{{ form.employee_id.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.employee_id.errors %}
+                                        <div class="text-danger small mt-1">{{ form.employee_id.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.first_name.id_for_label }}" class="form-label required-field">
+                                            Nombre
+                                        </label>
+                                        {{ form.first_name }}
+                                        {% if form.first_name.errors %}
+                                        <div class="text-danger small mt-1">{{ form.first_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.last_name.id_for_label }}" class="form-label required-field">
+                                            Apellido
+                                        </label>
+                                        {{ form.last_name }}
+                                        {% if form.last_name.errors %}
+                                        <div class="text-danger small mt-1">{{ form.last_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label required-field">
+                                            Email Corporativo
+                                        </label>
+                                        {{ form.email }}
+                                        {% if form.email.errors %}
+                                        <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                            Teléfono
+                                        </label>
+                                        {{ form.phone }}
+                                        {% if form.phone.errors %}
+                                        <div class="text-danger small mt-1">{{ form.phone.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.location.id_for_label }}" class="form-label">
+                                            Ubicación
+                                        </label>
+                                        {{ form.location }}
+                                        {% if form.location.errors %}
+                                        <div class="text-danger small mt-1">{{ form.location.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.profile_picture.id_for_label }}" class="form-label">
+                                            Foto de Perfil
+                                        </label>
+                                        {{ form.profile_picture }}
+                                        {% if resource.profile_picture %}
+                                        <div class="help-text-custom">
+                                            <i class="bi bi-image me-1"></i>Archivo actual: {{ resource.profile_picture.name }}
+                                        </div>
+                                        {% endif %}
+                                        {% if form.profile_picture.errors %}
+                                        <div class="text-danger small mt-1">{{ form.profile_picture.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información Profesional -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-briefcase me-2"></i>Información Profesional</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.primary_role.id_for_label }}" class="form-label required-field">
+                                            Rol Principal
+                                        </label>
+                                        {{ form.primary_role }}
+                                        {% if form.primary_role.help_text %}
+                                        <div class="help-text-custom">{{ form.primary_role.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.primary_role.errors %}
+                                        <div class="text-danger small mt-1">{{ form.primary_role.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.hire_date.id_for_label }}" class="form-label">
+                                            Fecha de Contratación
+                                        </label>
+                                        {{ form.hire_date }}
+                                        {% if form.hire_date.errors %}
+                                        <div class="text-danger small mt-1">{{ form.hire_date.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <label for="{{ form.bio.id_for_label }}" class="form-label">
+                                            Biografía Profesional
+                                        </label>
+                                        {{ form.bio }}
+                                        {% if form.bio.errors %}
+                                        <div class="text-danger small mt-1">{{ form.bio.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información Financiera -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-currency-dollar me-2"></i>Información Financiera</h5>
+                            <div class="alert alert-warning">
+                                <i class="bi bi-shield-lock me-2"></i>
+                                <strong>Información Confidencial:</strong> El costo interno es información sensible y no se comparte con el cliente.
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.internal_cost.id_for_label }}" class="form-label required-field">
+                                            Costo Interno por Hora (COP)
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            {{ form.internal_cost }}
+                                        </div>
+                                        {% if form.internal_cost.help_text %}
+                                        <div class="help-text-custom">{{ form.internal_cost.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.internal_cost.errors %}
+                                        <div class="text-danger small mt-1">{{ form.internal_cost.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Disponibilidad -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-calendar-check me-2"></i>Disponibilidad</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.status.id_for_label }}" class="form-label required-field">
+                                            Estado
+                                        </label>
+                                        {{ form.status }}
+                                        {% if form.status.errors %}
+                                        <div class="text-danger small mt-1">{{ form.status.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.availability_percentage.id_for_label }}" class="form-label required-field">
+                                            Disponibilidad (%)
+                                        </label>
+                                        <div class="input-group">
+                                            {{ form.availability_percentage }}
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        {% if form.availability_percentage.help_text %}
+                                        <div class="help-text-custom">{{ form.availability_percentage.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.availability_percentage.errors %}
+                                        <div class="text-danger small mt-1">{{ form.availability_percentage.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Habilidades Técnicas -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-code-slash me-2"></i>Habilidades Técnicas</h5>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <label class="form-label">Nombre de la Habilidad</label>
+                                    <input type="text" id="skill_name" class="form-control" placeholder="Ej: Python, Django, React">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Nivel (1-5)</label>
+                                    <select id="skill_level" class="form-select">
+                                        <option value="1">1 - Básico</option>
+                                        <option value="2">2 - Elemental</option>
+                                        <option value="3" selected>3 - Intermedio</option>
+                                        <option value="4">4 - Avanzado</option>
+                                        <option value="5">5 - Experto</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="button" class="btn btn-success w-100" onclick="addSkill()">
+                                        <i class="bi bi-plus-lg me-2"></i>Agregar Habilidad
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="skills_list" class="mt-3"></div>
+                        </div>
+
+                        <!-- Certificaciones -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-award me-2"></i>Certificaciones</h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label class="form-label">Nombre de la Certificación</label>
+                                    <input type="text" id="cert_name" class="form-control" placeholder="Ej: AWS Certified Solutions Architect">
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="button" class="btn btn-success w-100" onclick="addCertification()">
+                                        <i class="bi bi-plus-lg me-2"></i>Agregar Certificación
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="certifications_list" class="mt-3"></div>
+                        </div>
+
+                        <!-- Tecnologías Preferidas -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-heart me-2"></i>Tecnologías Preferidas</h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label class="form-label">Tecnología</label>
+                                    <input type="text" id="tech_name" class="form-control" placeholder="Ej: Docker, Kubernetes, PostgreSQL">
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="button" class="btn btn-success w-100" onclick="addTechnology()">
+                                        <i class="bi bi-plus-lg me-2"></i>Agregar Tecnología
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="technologies_list" class="mt-3"></div>
+                        </div>
+
+                        <!-- Campos ocultos para JSON -->
+                        {{ form.skills_vector }}
+                        {{ form.certifications }}
+                        {{ form.preferred_technologies }}
+
+                        <!-- Notas -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-sticky me-2"></i>Información Adicional</h5>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                            Notas Internas
+                                        </label>
+                                        {{ form.notes }}
+                                        {% if form.notes.errors %}
+                                        <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'resources:detail' resource.pk %}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-x-lg me-2"></i>Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-check-lg me-2"></i>Guardar Cambios
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Arrays para almacenar datos
+    let skills = [];
+    let certifications = [];
+    let technologies = [];
+
+    // Cargar datos existentes
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('resourceForm');
+
+        // Cargar habilidades existentes
+        const skillsInput = document.getElementById('id_skills_vector');
+        if (skillsInput && skillsInput.value) {
+            try {
+                skills = JSON.parse(skillsInput.value);
+                renderSkills();
+            } catch (e) {
+                skills = [];
+            }
+        }
+
+        // Cargar certificaciones existentes
+        const certsInput = document.getElementById('id_certifications');
+        if (certsInput && certsInput.value) {
+            try {
+                certifications = JSON.parse(certsInput.value);
+                renderCertifications();
+            } catch (e) {
+                certifications = [];
+            }
+        }
+
+        // Cargar tecnologías existentes
+        const techsInput = document.getElementById('id_preferred_technologies');
+        if (techsInput && techsInput.value) {
+            try {
+                technologies = JSON.parse(techsInput.value);
+                renderTechnologies();
+            } catch (e) {
+                technologies = [];
+            }
+        }
+
+        // Validar disponibilidad al enviar
+        form.addEventListener('submit', function(e) {
+            const availability = document.getElementById('id_availability_percentage').value;
+            if (availability < 0 || availability > 100) {
+                e.preventDefault();
+                alert('El porcentaje de disponibilidad debe estar entre 0 y 100');
+                return;
+            }
+
+            // Actualizar campos ocultos antes de enviar
+            updateHiddenFields();
+        });
+    });
+
+    // Funciones para Skills
+    function addSkill() {
+        const nameInput = document.getElementById('skill_name');
+        const levelInput = document.getElementById('skill_level');
+
+        const name = nameInput.value.trim();
+        const level = parseInt(levelInput.value);
+
+        if (!name) {
+            alert('Por favor ingresa el nombre de la habilidad');
+            return;
+        }
+
+        // Verificar si ya existe
+        if (skills.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+            alert('Esta habilidad ya fue agregada');
+            return;
+        }
+
+        skills.push({ name, level });
+        renderSkills();
+
+        nameInput.value = '';
+        levelInput.value = '3';
+        nameInput.focus();
+    }
+
+    function removeSkill(index) {
+        skills.splice(index, 1);
+        renderSkills();
+    }
+
+    function renderSkills() {
+        const container = document.getElementById('skills_list');
+        if (skills.length === 0) {
+            container.innerHTML = '<div class="alert alert-light"><i class="bi bi-info-circle me-2"></i>No hay habilidades agregadas</div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="row">' + skills.map((skill, index) => `
+            <div class="col-md-6 mb-2">
+                <div class="card">
+                    <div class="card-body p-2 d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${skill.name}</strong>
+                            <span class="badge ${getLevelBadgeClass(skill.level)} ms-2">
+                                Nivel ${skill.level}/5
+                            </span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeSkill(${index})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('') + '</div>';
+    }
+
+    function getLevelBadgeClass(level) {
+        if (level >= 4) return 'bg-success';
+        if (level >= 3) return 'bg-primary';
+        if (level >= 2) return 'bg-info';
+        return 'bg-secondary';
+    }
+
+    // Funciones para Certificaciones
+    function addCertification() {
+        const input = document.getElementById('cert_name');
+        const name = input.value.trim();
+
+        if (!name) {
+            alert('Por favor ingresa el nombre de la certificación');
+            return;
+        }
+
+        if (certifications.includes(name)) {
+            alert('Esta certificación ya fue agregada');
+            return;
+        }
+
+        certifications.push(name);
+        renderCertifications();
+
+        input.value = '';
+        input.focus();
+    }
+
+    function removeCertification(index) {
+        certifications.splice(index, 1);
+        renderCertifications();
+    }
+
+    function renderCertifications() {
+        const container = document.getElementById('certifications_list');
+        if (certifications.length === 0) {
+            container.innerHTML = '<div class="alert alert-light"><i class="bi bi-info-circle me-2"></i>No hay certificaciones agregadas</div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="list-group">' + certifications.map((cert, index) => `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-award text-warning me-2"></i>
+                    <strong>${cert}</strong>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCertification(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `).join('') + '</div>';
+    }
+
+    // Funciones para Tecnologías
+    function addTechnology() {
+        const input = document.getElementById('tech_name');
+        const name = input.value.trim();
+
+        if (!name) {
+            alert('Por favor ingresa el nombre de la tecnología');
+            return;
+        }
+
+        if (technologies.includes(name)) {
+            alert('Esta tecnología ya fue agregada');
+            return;
+        }
+
+        technologies.push(name);
+        renderTechnologies();
+
+        input.value = '';
+        input.focus();
+    }
+
+    function removeTechnology(index) {
+        technologies.splice(index, 1);
+        renderTechnologies();
+    }
+
+    function renderTechnologies() {
+        const container = document.getElementById('technologies_list');
+        if (technologies.length === 0) {
+            container.innerHTML = '<div class="alert alert-light"><i class="bi bi-info-circle me-2"></i>No hay tecnologías agregadas</div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="d-flex flex-wrap gap-2">' + technologies.map((tech, index) => `
+            <span class="badge bg-light text-dark p-2" style="font-size: 0.9rem;">
+                ${tech}
+                <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="removeTechnology(${index})" style="text-decoration: none;">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </span>
+        `).join('') + '</div>';
+    }
+
+    // Actualizar campos ocultos
+    function updateHiddenFields() {
+        document.getElementById('id_skills_vector').value = JSON.stringify(skills);
+        document.getElementById('id_certifications').value = JSON.stringify(certifications);
+        document.getElementById('id_preferred_technologies').value = JSON.stringify(technologies);
+    }
+
+    // Permitir agregar con Enter
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('skill_name').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addSkill();
+            }
+        });
+
+        document.getElementById('cert_name').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCertification();
+            }
+        });
+
+        document.getElementById('tech_name').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addTechnology();
+            }
+        });
+    });
+</script>
+{% endblock %}

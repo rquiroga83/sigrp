@@ -16,11 +16,7 @@ if (!(Get-Command uv -ErrorAction SilentlyContinue)) {
 Write-Host "`n🐍 Creando entorno virtual..." -ForegroundColor Cyan
 uv venv --python 3.12
 
-# 3. Activar entorno
-Write-Host "`n⚡ Activando entorno virtual..." -ForegroundColor Cyan
-& .\.venv\Scripts\Activate.ps1
-
-# 4. Instalar dependencias
+# 3. Instalar dependencias (uv maneja el entorno automáticamente)
 Write-Host "`n📚 Instalando dependencias..." -ForegroundColor Cyan
 uv pip install -e ".[dev]"
 
@@ -43,21 +39,22 @@ Start-Sleep -Seconds 5
 
 # 7. Ejecutar migraciones
 Write-Host "`n🗄️ Ejecutando migraciones..." -ForegroundColor Cyan
-python manage.py makemigrations
-python manage.py migrate
+uv run python manage.py makemigrations
+uv run python manage.py migrate
 
 # 8. Descargar modelo spaCy
 Write-Host "`n🧠 Descargando modelo de spaCy..." -ForegroundColor Cyan
-python -m spacy download es_core_news_sm
+uv run python -m spacy download es_core_news_sm
 
 # 9. Recolectar estáticos
 Write-Host "`n📁 Recolectando archivos estáticos..." -ForegroundColor Cyan
-python manage.py collectstatic --noinput
+uv run python manage.py collectstatic --noinput
 
 Write-Host "`n✨ Setup completado!" -ForegroundColor Green
 Write-Host "`nPróximos pasos:" -ForegroundColor Yellow
-Write-Host "1. Edita el archivo .env con tus credenciales"
-Write-Host "2. Crea un superusuario: python manage.py createsuperuser"
-Write-Host "3. Ejecuta el servidor: python manage.py runserver"
-Write-Host "4. En otra terminal, ejecuta Celery: celery -A config worker -l info --pool=solo"
+Write-Host "1. Edita el archivo .env con tus credenciales (si es necesario)"
+Write-Host "2. Crea un superusuario: uv run python manage.py createsuperuser"
+Write-Host "3. Ejecuta el servidor: uv run python manage.py runserver"
+Write-Host "4. En otra terminal, ejecuta Celery: uv run celery -A config worker -l info --pool=solo"
 Write-Host "`nAccede a: http://localhost:8000" -ForegroundColor Cyan
+Write-Host "`n💡 Tip: Usa 'uv run' antes de cualquier comando Python para ejecutarlo en el entorno virtual" -ForegroundColor Yellow

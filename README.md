@@ -98,13 +98,7 @@ cd sigrp
 # Crear entorno virtual con Python 3.12
 uv venv --python 3.12
 
-# Activar entorno
-# Windows:
-.venv\Scripts\activate
-# Linux/macOS:
-source .venv/bin/activate
-
-# Instalar dependencias
+# Instalar dependencias (uv maneja el entorno automáticamente)
 uv pip install -e ".[dev]"
 ```
 
@@ -138,23 +132,23 @@ cp .env.example .env
 #### 5. Aplicar migraciones
 
 ```bash
-# Generar migraciones (ya están creadas)
-python manage.py makemigrations
+# Generar migraciones (si es necesario)
+uv run python manage.py makemigrations
 
 # Aplicar migraciones
-python manage.py migrate
+uv run python manage.py migrate
 ```
 
 #### 6. Crear superusuario
 
 ```bash
-python manage.py createsuperuser
+uv run python manage.py createsuperuser
 ```
 
 #### 7. Descargar modelo spaCy (opcional)
 
 ```bash
-python -m spacy download es_core_news_sm
+uv run python -m spacy download es_core_news_sm
 ```
 
 ### 🚀 Ejecutar el Proyecto
@@ -163,31 +157,23 @@ python -m spacy download es_core_news_sm
 
 ```bash
 # Desarrollo
-python manage.py runserver
-
-$env:Path += ";$env:USERPROFILE\.local\bin"; uv run python manage.py runserver
-
 uv run python manage.py runserver
 
 # Producción (con Gunicorn)
-gunicorn config.wsgi:application --bind 0.0.0.0:8000
+uv run gunicorn config.wsgi:application --bind 0.0.0.0:8000
 ```
 
 #### Celery (en otra terminal - opcional)
 
 ```bash
-# Activar entorno virtual primero
-.venv\Scripts\activate  # Windows
-source .venv/bin/activate  # Linux/macOS
-
 # Worker (Windows)
-celery -A config worker -l info --pool=solo
+uv run celery -A config worker -l info --pool=solo
 
 # Worker (Linux/macOS)
-celery -A config worker -l info
+uv run celery -A config worker -l info
 
 # Beat (tareas periódicas)
-celery -A config beat -l info
+uv run celery -A config beat -l info
 ```
 
 ## 🎯 Características Principales
@@ -261,10 +247,10 @@ Todas calculadas automáticamente vía `@property` methods:
 
 ```bash
 # Ejecutar tests
-pytest
+uv run pytest
 
 # Con cobertura
-pytest --cov=apps --cov-report=html
+uv run pytest --cov=apps --cov-report=html
 
 # Ver reporte de cobertura
 # Windows:
@@ -281,9 +267,11 @@ open htmlcov/index.html
 
 ## 📚 Documentación Adicional
 
-- **[MODELOS_IMPLEMENTADOS.md](MODELOS_IMPLEMENTADOS.md)**: Documentación completa de modelos, fórmulas financieras y ejemplos de uso
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Arquitectura del sistema
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)**: Estructura detallada del proyecto
+- **[ESPEC.md](ESPEC.md)**: Especificación completa de requisitos (SRS)
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Arquitectura de datos y modelos
+- **[SETUP.md](SETUP.md)**: Guía detallada de instalación y configuración
+- **[UV_REFERENCE.md](UV_REFERENCE.md)**: 📖 Guía de referencia rápida de uv
+- **[RF-11_IMPLEMENTATION_SUMMARY.md](RF-11_IMPLEMENTATION_SUMMARY.md)**: Implementación de Resource Leveling
 
 ## 🔧 Comandos Útiles
 
@@ -295,18 +283,18 @@ docker-compose ps
 docker-compose logs -f db
 
 # Ver logs de Celery
-celery -A config inspect active
+uv run celery -A config inspect active
 
 # Crear app nueva
-python manage.py startapp nombre_app apps/nombre_app
+uv run python manage.py startapp nombre_app apps/nombre_app
 
 # Colectar estáticos
-python manage.py collectstatic
+uv run python manage.py collectstatic
 
 # Limpiar base de datos (desarrollo)
 docker-compose down -v
 docker-compose up -d
-python manage.py migrate
+uv run python manage.py migrate
 ```
 
 ## 🗄️ Gestión de Base de Datos

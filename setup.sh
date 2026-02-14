@@ -22,12 +22,7 @@ echo ""
 echo "🐍 Creando entorno virtual..."
 uv venv --python 3.12
 
-# 3. Activar entorno
-echo ""
-echo "⚡ Activando entorno virtual..."
-source .venv/bin/activate
-
-# 4. Instalar dependencias
+# 3. Instalar dependencias (uv maneja el entorno automáticamente)
 echo ""
 echo "📚 Instalando dependencias..."
 uv pip install -e ".[dev]"
@@ -54,26 +49,28 @@ sleep 5
 # 7. Ejecutar migraciones
 echo ""
 echo "🗄️ Ejecutando migraciones..."
-python manage.py makemigrations
-python manage.py migrate
+uv run python manage.py makemigrations
+uv run python manage.py migrate
 
 # 8. Descargar modelo spaCy
 echo ""
 echo "🧠 Descargando modelo de spaCy..."
-python -m spacy download es_core_news_sm
+uv run python -m spacy download es_core_news_sm
 
 # 9. Recolectar estáticos
 echo ""
 echo "📁 Recolectando archivos estáticos..."
-python manage.py collectstatic --noinput
+uv run python manage.py collectstatic --noinput
 
 echo ""
 echo "✨ Setup completado!"
 echo ""
 echo "Próximos pasos:"
-echo "1. Edita el archivo .env con tus credenciales"
-echo "2. Crea un superusuario: python manage.py createsuperuser"
-echo "3. Ejecuta el servidor: python manage.py runserver"
-echo "4. En otra terminal, ejecuta Celery: celery -A config worker -l info"
+echo "1. Edita el archivo .env con tus credenciales (si es necesario)"
+echo "2. Crea un superusuario: uv run python manage.py createsuperuser"
+echo "3. Ejecuta el servidor: uv run python manage.py runserver"
+echo "4. En otra terminal, ejecuta Celery: uv run celery -A config worker -l info"
 echo ""
 echo "Accede a: http://localhost:8000"
+echo ""
+echo "💡 Tip: Usa 'uv run' antes de cualquier comando Python para ejecutarlo en el entorno virtual"

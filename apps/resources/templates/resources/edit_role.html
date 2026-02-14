@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar Rol - SIGRP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .field-group {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .field-group h5 {
+        color: #495057;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    .help-text-custom {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    .seniority-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    .seniority-entry { background-color: #e7f3ff; color: #004085; }
+    .seniority-junior { background-color: #d4edda; color: #155724; }
+    .seniority-mid { background-color: #fff3cd; color: #856404; }
+    .seniority-senior { background-color: #f8d7da; color: #721c24; }
+    .seniority-lead { background-color: #d1ecf1; color: #0c5460; }
+    .seniority-principal { background-color: #e2e3e5; color: #383d41; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">
+                        <i class="bi bi-diagram-3 me-2"></i>Editar Rol: {{ role.name }}
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Modifica la información del rol profesional. Los campos con
+                        <span class="text-danger">*</span> son obligatorios.
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'resources:list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-10 col-xl-8 mx-auto">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" id="roleForm">
+                        {% csrf_token %}
+
+                        <!-- Información Básica -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-info-circle me-2"></i>Información Básica del Rol</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.code.id_for_label }}" class="form-label required-field">
+                                            Código del Rol
+                                        </label>
+                                        {{ form.code }}
+                                        {% if form.code.help_text %}
+                                        <div class="help-text-custom">{{ form.code.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.code.errors %}
+                                        <div class="text-danger small mt-1">{{ form.code.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.name.id_for_label }}" class="form-label required-field">
+                                            Nombre del Rol
+                                        </label>
+                                        {{ form.name }}
+                                        {% if form.name.errors %}
+                                        <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                                            Descripción
+                                        </label>
+                                        {{ form.description }}
+                                        {% if form.description.errors %}
+                                        <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Categorización -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-tags me-2"></i>Categorización</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.category.id_for_label }}" class="form-label required-field">
+                                            Categoría
+                                        </label>
+                                        {{ form.category }}
+                                        <div class="help-text-custom">
+                                            Categoría profesional (Technical, Management, QA, etc.)
+                                        </div>
+                                        {% if form.category.errors %}
+                                        <div class="text-danger small mt-1">{{ form.category.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.seniority.id_for_label }}" class="form-label required-field">
+                                            Nivel de Seniority
+                                        </label>
+                                        {{ form.seniority }}
+                                        <div class="help-text-custom">
+                                            Nivel de experiencia del rol
+                                        </div>
+                                        {% if form.seniority.errors %}
+                                        <div class="text-danger small mt-1">{{ form.seniority.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Referencia de Seniority -->
+                            <div class="alert alert-light border">
+                                <small class="text-muted d-block mb-2"><strong>Referencia de Niveles:</strong></small>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <span class="seniority-badge seniority-entry">Entry Level</span>
+                                    <span class="seniority-badge seniority-junior">Junior</span>
+                                    <span class="seniority-badge seniority-mid">Mid-Level</span>
+                                    <span class="seniority-badge seniority-senior">Senior</span>
+                                    <span class="seniority-badge seniority-lead">Lead</span>
+                                    <span class="seniority-badge seniority-principal">Principal</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarifa Estándar -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-currency-dollar me-2"></i>Tarifa Estándar de Facturación</h5>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Tarifa de Rol:</strong> Esta tarifa se usa para estimar proyectos y facturar al cliente.
+                                Es diferente del costo interno de cada recurso individual.
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.standard_rate.id_for_label }}" class="form-label required-field">
+                                            Tarifa Estándar por Hora (COP)
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            {{ form.standard_rate }}
+                                        </div>
+                                        {% if form.standard_rate.help_text %}
+                                        <div class="help-text-custom">{{ form.standard_rate.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.standard_rate.errors %}
+                                        <div class="text-danger small mt-1">{{ form.standard_rate.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ejemplo de Cálculo -->
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-2">
+                                        <i class="bi bi-calculator me-2"></i>Ejemplo de Facturación
+                                    </h6>
+                                    <p class="mb-0 small text-muted">
+                                        Si este rol trabaja <strong>40 horas</strong> en una tarea,
+                                        se facturará al cliente: <strong>Tarifa × 40h</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estado -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-toggle-on me-2"></i>Estado</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            Rol Activo
+                                        </label>
+                                        <div class="help-text-custom">
+                                            Solo los roles activos están disponibles para asignación
+                                        </div>
+                                        {% if form.is_active.errors %}
+                                        <div class="text-danger small mt-1">{{ form.is_active.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Campos ocultos -->
+                        {{ form.required_skills }}
+
+                        <!-- Notas -->
+                        <div class="field-group">
+                            <h5><i class="bi bi-sticky me-2"></i>Información Adicional</h5>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                            Notas Internas
+                                        </label>
+                                        {{ form.notes }}
+                                        {% if form.notes.errors %}
+                                        <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'resources:list' %}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-x-lg me-2"></i>Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-check-lg me-2"></i>Guardar Cambios
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información Adicional -->
+    <div class="row mt-4">
+        <div class="col-lg-10 col-xl-8 mx-auto">
+            <div class="card border-0 bg-light">
+                <div class="card-body">
+                    <h6 class="mb-3">
+                        <i class="bi bi-lightbulb me-2"></i>Sobre la Arquitectura Dual de Costos
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong class="text-primary">Rol (Tarifa Estándar)</strong>
+                                <p class="small text-muted mb-0">
+                                    Define cuánto se <strong>cobra al cliente</strong> por hora de trabajo.
+                                    Se usa para estimar proyectos y calcular facturación.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong class="text-success">Recurso (Costo Interno)</strong>
+                                <p class="small text-muted mb-0">
+                                    Define cuánto <strong>cuesta a la empresa</strong> cada hora del empleado.
+                                    Se usa para calcular costos reales y márgenes de ganancia.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Validación del formulario
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('roleForm');
+        const standardRateInput = document.getElementById('id_standard_rate');
+
+        // Validar tarifa al enviar
+        form.addEventListener('submit', function(e) {
+            const rate = parseFloat(standardRateInput.value);
+            if (isNaN(rate) || rate <= 0) {
+                e.preventDefault();
+                alert('La tarifa estándar debe ser mayor a cero');
+                standardRateInput.focus();
+            }
+        });
+    });
+</script>
+{% endblock %}

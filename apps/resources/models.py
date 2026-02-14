@@ -66,10 +66,10 @@ class Role(AuditableModel):
     
     # --- TARIFA ESTÁNDAR DE VENTA/ESTIMACIÓN ---
     standard_rate = models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Tarifa Estándar por Hora (USD)",
+        verbose_name="Tarifa Estándar por Hora (COP)",
         help_text="Tarifa usada para estimaciones y presupuestos al cliente"
     )
     
@@ -187,10 +187,10 @@ class Resource(AuditableModel):
     
     # --- COSTO INTERNO REAL ---
     internal_cost = models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Costo Interno por Hora (USD)",
+        verbose_name="Costo Interno por Hora (COP)",
         help_text="Costo real por hora de este recurso específico (confidencial)"
     )
     

@@ -89,45 +89,45 @@ class Project(AuditableModel):
     
     # Fixed Price: Precio acordado con el cliente
     fixed_price = models.DecimalField(
-        max_digits=12,
+        max_digits=14,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Precio Fijo Acordado (USD)",
+        verbose_name="Precio Fijo Acordado (COP)",
         help_text="Solo para proyectos Fixed Price"
     )
-    
+
     # Fixed Price: Presupuesto interno límite
     budget_limit = models.DecimalField(
-        max_digits=12,
+        max_digits=14,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Límite de Presupuesto Interno (USD)",
+        verbose_name="Límite de Presupuesto Interno (COP)",
         help_text="Costo máximo permitido para el proyecto"
     )
-    
+
     # Time & Materials: Tarifa por hora para el cliente
     hourly_rate = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Tarifa por Hora (USD)",
-        help_text="Tarifa aplicada al cliente en proyectos T&M"
-    )
-    
-    # Time & Materials: Presupuesto máximo estimado
-    max_budget = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Presupuesto Máximo Estimado (USD)",
+        verbose_name="Tarifa por Hora (COP)",
+        help_text="Tarifa aplicada al cliente en proyectos T&M"
+    )
+
+    # Time & Materials: Presupuesto máximo estimado
+    max_budget = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Presupuesto Máximo Estimado (COP)",
         help_text="Estimación de techo para proyectos T&M"
     )
     
@@ -687,20 +687,20 @@ class TimeLog(AuditableModel):
     )
     
     # --- CAMPOS AUTO-CALCULADOS ---
-    
+
     cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=Decimal('0.00'),
-        verbose_name="Costo Interno (USD)",
+        verbose_name="Costo Interno (COP)",
         help_text="Auto-calculado: hours × resource.internal_cost"
     )
-    
+
     billable_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=Decimal('0.00'),
-        verbose_name="Monto Facturable (USD)",
+        verbose_name="Monto Facturable (COP)",
         help_text="Auto-calculado: hours × task.required_role.standard_rate"
     )
     
@@ -801,20 +801,20 @@ class TimeEntry(AuditableModel):
     )
     
     # --- CAMPOS AUTO-CALCULADOS ---
-    
+
     cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=Decimal('0.00'),
-        verbose_name="Costo Interno (USD)",
+        verbose_name="Costo Interno (COP)",
         help_text="Auto-calculado: hours × resource.internal_cost"
     )
-    
+
     billable_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=Decimal('0.00'),
-        verbose_name="Monto Facturable (USD)",
+        verbose_name="Monto Facturable (COP)",
         help_text="Auto-calculado según tipo de proyecto"
     )
     

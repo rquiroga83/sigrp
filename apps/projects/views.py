@@ -12,6 +12,7 @@ from decimal import Decimal
 from .models import Project, Task, Allocation, Stage, TimeLog
 from apps.resources.models import Resource, Role
 from .services import calculate_availability, get_allocation_recommendations
+from .forms import ProjectForm
 
 
 def project_list(request):
@@ -37,12 +38,62 @@ def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
     stages = project.stages.all().prefetch_related('tasks')
     tasks = project.tasks.select_related('required_role', 'assigned_resource', 'stage').all()
-    
+
     return render(request, 'projects/detail.html', {
         'project': project,
         'stages': stages,
         'tasks': tasks
     })
+
+
+@login_required
+def project_create(request):
+    """
+    Vista para crear un nuevo proyecto.
+    Utiliza formulario con validación dinámica según tipo de proyecto.
+    """
+    if request.method == 'POST':
+        form = ProjectForm(request.POST)
+
+        if form.is_valid():
+            try:
+                project = form.save(commit=False)
+
+                # Asignar usuario creador si está autenticado
+                if request.user.is_authenticated:
+                    project.created_by = request.user
+                    project.updated_by = request.user
+
+                project.save()
+
+                messages.success(
+                    request,
+                    f'✅ Proyecto "{project.name}" ({project.code}) creado exitosamente'
+                )
+
+                # Redirigir a la página de edición para agregar etapas y tareas
+                return redirect('projects:edit', pk=project.pk)
+
+            except ValidationError as e:
+                for error in e.messages:
+                    messages.error(request, error)
+            except Exception as e:
+                messages.error(request, f'Error al crear proyecto: {str(e)}')
+        else:
+            # Mostrar errores del formulario
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        # GET: Mostrar formulario vacío
+        form = ProjectForm()
+
+    context = {
+        'form': form,
+        'is_create': True,
+    }
+
+    return render(request, 'projects/create.html', context)
 
 
 @login_required

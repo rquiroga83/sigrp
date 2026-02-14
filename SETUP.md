@@ -1,5 +1,31 @@
 # Guía de Inicialización SIGRP
 
+## 💡 Sobre `uv run`
+
+Este proyecto utiliza **uv** como gestor de paquetes y entornos virtuales. A diferencia del flujo tradicional de Python, **no necesitas activar manualmente el entorno virtual**.
+
+**Ventajas de `uv run`:**
+- ✅ **No requiere activación manual** del entorno virtual
+- ✅ **Ejecuta automáticamente** en el contexto correcto del proyecto
+- ✅ **Más rápido** que pip tradicional
+- ✅ **Consistente** entre diferentes sistemas operativos
+- ✅ **Evita errores** por usar el Python incorrecto
+
+**Comparación:**
+
+```bash
+# ❌ Flujo tradicional (NO usar)
+source .venv/bin/activate
+python manage.py runserver
+
+# ✅ Flujo con uv (RECOMENDADO)
+uv run python manage.py runserver
+```
+
+Si prefieres activar el entorno manualmente, puedes hacerlo, pero **uv run es la forma recomendada**.
+
+---
+
 ## 🚀 Setup Rápido (Windows)
 
 ### 1. Instalar uv
@@ -19,13 +45,8 @@ cd d:\proyectos\sigrp
 # Crear entorno virtual con Python 3.12
 uv venv --python 3.12
 
-# Activar entorno virtual
-.venv\Scripts\activate
-
-# Instalar dependencias (producción)
-uv pip install -e .
-
-# Instalar dependencias de desarrollo
+# Instalar dependencias de desarrollo (incluye producción)
+# No es necesario activar el entorno, uv lo maneja automáticamente
 uv pip install -e ".[dev]"
 ```
 
@@ -57,40 +78,40 @@ docker-compose ps
 
 ### 5. Inicializar base de datos
 ```powershell
-# Crear migraciones
-python manage.py makemigrations
+# Crear migraciones (si es necesario)
+uv run python manage.py makemigrations
 
 # Aplicar migraciones
-python manage.py migrate
+uv run python manage.py migrate
 
 # Crear superusuario
-python manage.py createsuperuser
+uv run python manage.py createsuperuser
 ```
 
 ### 6. Descargar modelo de spaCy
 ```powershell
 # Descargar modelo de español
-python -m spacy download es_core_news_sm
+uv run python -m spacy download es_core_news_sm
 
 # Verificar instalación
-python -c "import spacy; nlp = spacy.load('es_core_news_sm'); print('spaCy OK')"
+uv run python -c "import spacy; nlp = spacy.load('es_core_news_sm'); print('spaCy OK')"
 ```
 
 ### 7. Recolectar archivos estáticos
 ```powershell
-python manage.py collectstatic --noinput
+uv run python manage.py collectstatic --noinput
 ```
 
 ### 8. Ejecutar el servidor de desarrollo
 ```powershell
 # En terminal 1: Django
-python manage.py runserver
+uv run python manage.py runserver
 
-# En terminal 2: Celery Worker
-celery -A config worker -l info --pool=solo
+# En terminal 2: Celery Worker (Windows)
+uv run celery -A config worker -l info --pool=solo
 
 # En terminal 3: Celery Beat (tareas periódicas)
-celery -A config beat -l info
+uv run celery -A config beat -l info
 ```
 
 ---
@@ -108,11 +129,10 @@ uv --version
 ```bash
 cd ~/proyectos/sigrp
 
-# Crear y activar entorno
+# Crear entorno virtual con Python 3.12
 uv venv --python 3.12
-source .venv/bin/activate
 
-# Instalar dependencias
+# Instalar dependencias (uv maneja el entorno automáticamente)
 uv pip install -e ".[dev]"
 ```
 
@@ -127,22 +147,22 @@ docker-compose up -d
 
 ### 4. Inicializar DB y spaCy
 ```bash
-python manage.py migrate
-python manage.py createsuperuser
-python -m spacy download es_core_news_sm
-python manage.py collectstatic --noinput
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python -m spacy download es_core_news_sm
+uv run python manage.py collectstatic --noinput
 ```
 
 ### 5. Ejecutar servicios
 ```bash
-# Terminal 1
-python manage.py runserver
+# Terminal 1: Django
+uv run python manage.py runserver
 
-# Terminal 2
-celery -A config worker -l info
+# Terminal 2: Celery Worker
+uv run celery -A config worker -l info
 
-# Terminal 3
-celery -A config beat -l info
+# Terminal 3: Celery Beat
+uv run celery -A config beat -l info
 ```
 
 ---
@@ -173,27 +193,27 @@ uv pip check
 
 ## 🔧 Comandos Django Comunes
 
-```powershell
+```bash
 # Crear nueva app
-python manage.py startapp nombre_app
+uv run python manage.py startapp nombre_app
 
 # Crear migraciones
-python manage.py makemigrations [app_name]
+uv run python manage.py makemigrations [app_name]
 
 # Ver SQL de migraciones
-python manage.py sqlmigrate app_name migration_number
+uv run python manage.py sqlmigrate app_name migration_number
 
-# Shell interactivo
-python manage.py shell
+# Shell interactivo con IPython
+uv run python manage.py shell
 
 # Cargar datos de prueba (si tienes fixtures)
-python manage.py loaddata fixtures/initial_data.json
+uv run python manage.py loaddata fixtures/initial_data.json
 
 # Ejecutar tests
-pytest
+uv run pytest
 
 # Ver rutas disponibles
-python manage.py show_urls
+uv run python manage.py show_urls
 ```
 
 ---
@@ -224,21 +244,21 @@ docker-compose exec postgres psql -U sigrp_user -d sigrp_db
 
 ## 📊 Verificación del Sistema
 
-```powershell
+```bash
 # Verificar configuración de Django
-python manage.py check
+uv run python manage.py check
 
 # Ver migraciones aplicadas
-python manage.py showmigrations
+uv run python manage.py showmigrations
 
 # Verificar modelos de spaCy
-python -c "import spacy; print(spacy.info())"
+uv run python -c "import spacy; print(spacy.info())"
 
 # Verificar conexión a PostgreSQL
-python manage.py dbshell
+uv run python manage.py dbshell
 
 # Verificar Celery
-celery -A config inspect ping
+uv run celery -A config inspect ping
 ```
 
 ---
@@ -263,12 +283,12 @@ docker-compose logs postgres
 ```
 
 ### Error de spaCy
-```powershell
+```bash
 # Reinstalar modelo
-python -m spacy download es_core_news_sm --force
+uv run python -m spacy download es_core_news_sm --force
 
 # Verificar ruta de modelos
-python -m spacy info es_core_news_sm
+uv run python -m spacy info es_core_news_sm
 ```
 
 ### Error de Redis
@@ -281,16 +301,19 @@ docker-compose exec redis redis-cli ping
 ```
 
 ### Celery no procesa tareas
-```powershell
+```bash
 # Ver workers activos
-celery -A config inspect active
+uv run celery -A config inspect active
 
 # Purgar cola
-celery -A config purge
+uv run celery -A config purge
 
-# Reiniciar worker
+# Reiniciar worker (Windows)
 # Ctrl+C y volver a ejecutar
-celery -A config worker -l info --pool=solo
+uv run celery -A config worker -l info --pool=solo
+
+# Reiniciar worker (Linux/macOS)
+uv run celery -A config worker -l info
 ```
 
 ---

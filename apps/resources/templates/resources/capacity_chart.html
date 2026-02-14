@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Capacidad de Recursos - SIGRP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .stat-card.capacity {
+        border-left-color: #0d6efd;
+    }
+    .stat-card.allocated {
+        border-left-color: #198754;
+    }
+    .stat-card.utilization {
+        border-left-color: #ffc107;
+    }
+    .stat-card.available {
+        border-left-color: #6c757d;
+    }
+    .chart-container {
+        position: relative;
+        height: 500px;
+        margin-bottom: 2rem;
+    }
+    .legend-item {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 0.5rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">
+                        <i class="bi bi-bar-chart me-2"></i>Capacidad de Recursos por Proyecto
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Visualización de asignación de recursos y carga de trabajo por proyecto
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'resources:list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros de Fecha -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="start_date" class="form-label">
+                                <i class="bi bi-calendar-event me-2"></i>Fecha Inicio
+                            </label>
+                            <input type="date" class="form-control" id="start_date" name="start_date"
+                                   value="{{ start_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="end_date" class="form-label">
+                                <i class="bi bi-calendar-event me-2"></i>Fecha Fin
+                            </label>
+                            <input type="date" class="form-control" id="end_date" name="end_date"
+                                   value="{{ end_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-filter me-2"></i>Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm stat-card capacity">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Capacidad Total</h6>
+                            <h3 class="mb-0">{{ total_capacity|floatformat:1 }}h</h3>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-hourglass-split" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm stat-card allocated">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Horas Asignadas</h6>
+                            <h3 class="mb-0">{{ total_allocated|floatformat:1 }}h</h3>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm stat-card utilization">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Tasa de Utilización</h6>
+                            <h3 class="mb-0">{{ utilization_rate|floatformat:1 }}%</h3>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-speedometer" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm stat-card available">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Recursos Activos</h6>
+                            <h3 class="mb-0">{{ total_resources }}</h3>
+                        </div>
+                        <div class="text-secondary">
+                            <i class="bi bi-people" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Barras Apiladas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart-fill me-2"></i>Asignación de Recursos por Proyecto
+                        <small class="text-muted">({{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }})</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if total_allocated > 0 %}
+                    <div class="chart-container">
+                        <canvas id="capacityChart"></canvas>
+                    </div>
+
+                    <!-- Leyenda de Proyectos -->
+                    <div class="mt-3">
+                        <h6 class="mb-3">Proyectos con asignaciones:</h6>
+                        <div id="project-legend" class="d-flex flex-wrap">
+                            {% for project in projects %}
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: {{ project.color }};"></div>
+                                <span>{{ project.name }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Sin datos -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 4rem; color: #dee2e6;"></i>
+                        <h5 class="text-muted mt-3">No hay registros de tiempo en el rango seleccionado</h5>
+                        <p class="text-muted mb-3">
+                            No se encontraron asignaciones de recursos entre
+                            <strong>{{ start_date|date:"d/m/Y" }}</strong> y
+                            <strong>{{ end_date|date:"d/m/Y" }}</strong>
+                        </p>
+
+                        <!-- Información de debug -->
+                        <div class="alert alert-light d-inline-block text-start mb-3">
+                            <strong>Estado del sistema:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Recursos activos: <strong>{{ total_resources }}</strong></li>
+                                <li>Proyectos con tiempo registrado: <strong>{{ projects_count }}</strong></li>
+                                <li>TimeLog encontrados: <strong>{{ total_time_logs }}</strong></li>
+                                <li>TimeEntry encontrados: <strong>{{ total_time_entries }}</strong></li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-info d-inline-block text-start">
+                            <strong>Sugerencias:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Verifica que haya registros de tiempo (TimeLog o TimeEntry) en el sistema</li>
+                                <li>Prueba con un rango de fechas diferente (ej: último mes)</li>
+                                <li>Asegúrate de que los proyectos tengan tareas con tiempo registrado</li>
+                                <li>Los registros de tiempo deben estar asociados a proyectos activos o en planificación</li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información Adicional -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Cómo Interpretar el Gráfico
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2">
+                            <strong>Altura de la barra:</strong> Representa la capacidad semanal total de cada recurso (40h × disponibilidad)
+                        </li>
+                        <li class="mb-2">
+                            <strong>Segmentos de colores:</strong> Cada color representa un proyecto diferente
+                        </li>
+                        <li class="mb-2">
+                            <strong>Altura del segmento:</strong> Horas asignadas a ese proyecto
+                        </li>
+                        <li class="mb-2">
+                            <strong>Línea roja:</strong> Indica el límite de capacidad del recurso
+                        </li>
+                        <li class="mb-0">
+                            <strong>Espacio vacío:</strong> Capacidad disponible no asignada
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Alertas de Capacidad
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if utilization_rate > 100 %}
+                    <div class="alert alert-danger mb-3">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        <strong>Sobreasignación:</strong> El equipo está trabajando {{ utilization_rate|floatformat:0 }}% de su capacidad. Considere redistribuir carga o contratar más recursos.
+                    </div>
+                    {% elif utilization_rate > 85 %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Alta utilización:</strong> El equipo está cerca del límite de capacidad ({{ utilization_rate|floatformat:0 }}%). Monitoree cuidadosamente.
+                    </div>
+                    {% elif utilization_rate < 50 %}
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Baja utilización:</strong> Hay capacidad disponible ({{ utilization_rate|floatformat:0 }}%). Considere aceptar más proyectos.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Utilización óptima:</strong> El equipo está trabajando al {{ utilization_rate|floatformat:0 }}% de su capacidad.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{{ chart_data|json_script:"chart-data" }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Datos del gráfico desde Django
+        const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+
+        // Solo renderizar el gráfico si hay datos
+        const chartCanvas = document.getElementById('capacityChart');
+        if (!chartCanvas) {
+            return; // No hay elemento canvas (probablemente porque no hay datos)
+        }
+
+        // Configurar el gráfico
+        const ctx = chartCanvas.getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: chartData.datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Capacidad de Recursos (Horas Semanales)',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        callbacks: {
+                            footer: function(tooltipItems) {
+                                let sum = 0;
+                                tooltipItems.forEach(function(tooltipItem) {
+                                    sum += tooltipItem.parsed.y;
+                                });
+                                const capacity = chartData.capacities[tooltipItems[0].dataIndex];
+                                const utilization = (sum / capacity * 100).toFixed(1);
+                                return `Total: ${sum.toFixed(1)}h / ${capacity.toFixed(1)}h (${utilization}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Recursos'
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Horas'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + 'h';
+                            }
+                        }
+                    }
+                },
+                // Agregar líneas de capacidad
+                plugins: [{
+                    afterDatasetsDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        const xAxis = chart.scales.x;
+                        const yAxis = chart.scales.y;
+
+                        // Dibujar líneas de capacidad para cada recurso
+                        chartData.capacities.forEach((capacity, index) => {
+                            const x = xAxis.getPixelForValue(index);
+                            const y = yAxis.getPixelForValue(capacity);
+                            const barWidth = xAxis.width / chartData.labels.length;
+
+                            ctx.save();
+                            ctx.strokeStyle = 'red';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.moveTo(x - barWidth / 2, y);
+                            ctx.lineTo(x + barWidth / 2, y);
+                            ctx.stroke();
+                            ctx.restore();
+                        });
+                    }
+                }]
+            }
+        });
+    });
+</script>
+{% endblock %}
