@@ -7,14 +7,14 @@ from .models import Role, Resource
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'seniority', 'standard_rate', 'is_active']
+    list_display = ['name', 'code', 'category', 'seniority', 'standard_rate', 'is_active']
     list_filter = ['category', 'seniority', 'is_active']
-    search_fields = ['name', 'description']
+    search_fields = ['name', 'code', 'description']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'category', 'seniority', 'description')
+            'fields': ('name', 'code', 'category', 'seniority', 'description')
         }),
         ('Información Financiera', {
             'fields': ('standard_rate',)
