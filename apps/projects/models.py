@@ -309,13 +309,31 @@ class Project(AuditableModel):
     
     @property
     def completion_percentage(self) -> float:
-        """Porcentaje de completitud basado en tareas."""
-        total_tasks = self.tasks.count()
-        if total_tasks == 0:
+        """
+        Porcentaje de completitud basado en promedio ponderado de tareas.
+        Pondera cada tarea por sus horas estimadas para reflejar su peso real.
+        """
+        tasks = self.tasks.all()
+        if not tasks:
             return 0.0
-        
-        completed_tasks = self.tasks.filter(status='completed').count()
-        return (completed_tasks / total_tasks) * 100
+
+        total_weighted_progress = Decimal('0.0')
+        total_estimated_hours = Decimal('0.0')
+
+        for task in tasks:
+            # Obtener porcentaje de la tarea (manual o calculado)
+            task_percentage = Decimal(str(task.completion_percentage))
+            task_hours = task.estimated_hours
+
+            # Acumular progreso ponderado
+            total_weighted_progress += (task_percentage * task_hours)
+            total_estimated_hours += task_hours
+
+        if total_estimated_hours == 0:
+            return 0.0
+
+        # Promedio ponderado
+        return float(total_weighted_progress / total_estimated_hours)
 
 
 class Stage(AuditableModel):
@@ -556,7 +574,17 @@ class Task(AuditableModel):
         blank=True,
         verbose_name="Fecha de Completitud"
     )
-    
+
+    # Porcentaje de avance manual
+    manual_progress_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Porcentaje de Avance Manual (%)",
+        help_text="Porcentaje de avance establecido manualmente (0-100)"
+    )
+
     # Metadatos
     tags = models.JSONField(
         default=list,
@@ -640,9 +668,15 @@ class Task(AuditableModel):
     @property
     def completion_percentage(self) -> float:
         """
-        Porcentaje de completitud basado en horas.
-        Fórmula: (logged_hours / estimated_hours) * 100
+        Porcentaje de completitud.
+        Usa el porcentaje manual si existe, sino calcula basado en horas.
+        Fórmula automática: (logged_hours / estimated_hours) * 100
         """
+        # Si hay porcentaje manual, usarlo
+        if self.manual_progress_percentage is not None:
+            return float(self.manual_progress_percentage)
+
+        # Calcular automáticamente basado en horas
         if self.estimated_hours == 0:
             return 0.0
         percentage = float((self.logged_hours / self.estimated_hours) * 100)

@@ -149,7 +149,7 @@
                                             {{ item.project.name }}
                                         </a>
                                     </td>
-                                    <td>{{ item.project.client.name }}</td>
+                                    <td>{{ item.project.client_name }}</td>
                                     <td class="text-end">${{ item.cost|floatformat:2 }}</td>
                                     <td class="text-end">${{ item.billable|floatformat:2 }}</td>
                                     <td class="text-end">
@@ -201,7 +201,7 @@
                                             {{ item.project.name }}
                                         </a>
                                     </td>
-                                    <td>{{ item.project.client.name }}</td>
+                                    <td>{{ item.project.client_name }}</td>
                                     <td class="text-end">${{ item.billable|floatformat:2 }}</td>
                                     <td class="text-end">
                                         {% if item.margin < 15 %}

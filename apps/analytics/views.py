@@ -154,14 +154,14 @@ def resources_utilization(request):
             resource=resource,
             date__gte=thirty_days_ago
         ).aggregate(total=Sum('hours'))['total'] or Decimal('0.00')
-        
-        # Calcular capacidad teórica (40h/sem × 4 semanas)
-        capacity = Decimal('160.00')
+
+        # Calcular capacidad teórica ajustada por disponibilidad (40h/sem × 4 semanas × availability%)
+        capacity = Decimal('160.00') * (Decimal(resource.availability_percentage) / Decimal('100.0'))
         utilization = float((hours_logged / capacity * 100)) if capacity > 0 else 0
-        
-        # Calcular costos y facturación
+
+        # Calcular costos y facturación usando effective_rate
         cost = hours_logged * resource.internal_cost
-        billable = hours_logged * resource.primary_role.standard_rate
+        billable = hours_logged * resource.effective_rate
         profit = billable - cost
         margin = float((profit / billable * 100)) if billable > 0 else 0
         
@@ -278,12 +278,35 @@ def resource_booking(request):
             allocations_qs = allocations_qs.filter(is_active=True)
         
         allocations_list = list(allocations_qs)
-        
-        # Calcular total de horas asignadas por semana
-        total_hours_per_week = sum(a.hours_per_week for a in allocations_list)
-        
-        # Capacidad estándar (40h/semana)
-        capacity = Decimal('40.00')
+
+        # Calcular la carga máxima simultánea (no la suma total)
+        # Necesitamos encontrar el máximo de horas en cualquier punto del tiempo
+        max_hours_per_week = Decimal('0.00')
+
+        if allocations_list:
+            # Crear lista de eventos (inicio y fin de cada asignación)
+            events = []
+            for alloc in allocations_list:
+                events.append(('start', alloc.start_date, alloc.hours_per_week))
+                # El fin es al día siguiente para que no cuente en ese día
+                events.append(('end', alloc.end_date + timedelta(days=1), alloc.hours_per_week))
+
+            # Ordenar eventos por fecha
+            events.sort(key=lambda x: (x[1], x[0] == 'end'))
+
+            # Sweep line algorithm para encontrar el máximo
+            current_hours = Decimal('0.00')
+            for event_type, date, hours in events:
+                if event_type == 'start':
+                    current_hours += hours
+                    max_hours_per_week = max(max_hours_per_week, current_hours)
+                else:
+                    current_hours -= hours
+
+        total_hours_per_week = max_hours_per_week
+
+        # Capacidad ajustada por disponibilidad del recurso
+        capacity = Decimal('40.00') * (Decimal(resource.availability_percentage) / Decimal('100.0'))
         
         # Porcentaje de ocupación
         occupancy_percentage = float((total_hours_per_week / capacity * 100)) if capacity > 0 else 0

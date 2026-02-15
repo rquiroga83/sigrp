@@ -28,4 +28,7 @@ urlpatterns = [
     
     # Actualizar estado de tarea
     path('<int:project_pk>/tasks/<int:task_pk>/update-status/', views.update_task_status, name='update_task_status'),
+
+    # Actualizar progreso de tarea
+    path('<int:project_pk>/tasks/<int:task_pk>/update-progress/', views.update_task_progress, name='update_task_progress'),
 ]

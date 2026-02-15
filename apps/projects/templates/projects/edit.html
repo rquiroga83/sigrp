@@ -149,29 +149,33 @@
                         <div id="fixedPriceFields" style="display: none;">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Precio Fijo (USD)</label>
-                                    <input type="number" class="form-control" name="fixed_price" 
-                                           value="{{ project.fixed_price }}" step="0.01">
+                                    <label class="form-label">Precio Fijo (COP)</label>
+                                    <input type="number" class="form-control" name="fixed_price"
+                                           value="{{ project.fixed_price }}" step="1000" min="1">
+                                    <small class="text-muted">Precio acordado con el cliente en pesos colombianos</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Límite de Presupuesto (USD)</label>
-                                    <input type="number" class="form-control" name="budget_limit" 
-                                           value="{{ project.budget_limit }}" step="0.01">
+                                    <label class="form-label">Límite de Presupuesto (COP)</label>
+                                    <input type="number" class="form-control" name="budget_limit"
+                                           value="{{ project.budget_limit }}" step="1000" min="1">
+                                    <small class="text-muted">Límite de costo interno en COP</small>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="tmFields" style="display: none;">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Tarifa por Hora (USD)</label>
-                                    <input type="number" class="form-control" name="hourly_rate" 
-                                           value="{{ project.hourly_rate }}" step="0.01">
+                                    <label class="form-label">Tarifa por Hora (COP)</label>
+                                    <input type="number" class="form-control" name="hourly_rate"
+                                           value="{{ project.hourly_rate }}" step="1000" min="1">
+                                    <small class="text-muted">Tarifa por hora facturada al cliente</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Presupuesto Máximo (USD)</label>
-                                    <input type="number" class="form-control" name="max_budget" 
-                                           value="{{ project.max_budget }}" step="0.01">
+                                    <label class="form-label">Presupuesto Máximo (COP)</label>
+                                    <input type="number" class="form-control" name="max_budget"
+                                           value="{{ project.max_budget }}" step="1000" min="1">
+                                    <small class="text-muted">Presupuesto máximo estimado en COP</small>
                                 </div>
                             </div>
                         </div>

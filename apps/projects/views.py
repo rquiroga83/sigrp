@@ -8,7 +8,7 @@ from django.db.models import Count, Q
 from django.views.decorators.http import require_http_methods
 from django.core.exceptions import ValidationError
 from datetime import datetime, date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from .models import Project, Task, Allocation, Stage, TimeLog
 from apps.resources.models import Resource, Role
 from .services import calculate_availability, get_allocation_recommendations
@@ -929,5 +929,46 @@ def update_task_status(request, project_pk, task_pk):
             
     except Exception as e:
         messages.error(request, f'Error al actualizar estado: {str(e)}')
-    
+
+    return redirect('projects:detail', pk=project_pk)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_task_progress(request, project_pk, task_pk):
+    """
+    Actualiza el porcentaje de avance manual de una tarea.
+    Vista para actualización rápida desde el detalle del proyecto.
+    """
+    try:
+        project = get_object_or_404(Project, pk=project_pk)
+        task = get_object_or_404(Task, pk=task_pk, project=project)
+
+        progress = request.POST.get('progress')
+
+        if progress is not None:
+            try:
+                progress_value = Decimal(progress)
+
+                # Validar rango 0-100
+                if progress_value < 0 or progress_value > 100:
+                    messages.error(request, 'El porcentaje debe estar entre 0 y 100')
+                    return redirect('projects:detail', pk=project_pk)
+
+                task.manual_progress_percentage = progress_value
+                task.save()
+
+                messages.success(
+                    request,
+                    f'✅ Avance de "{task.title}" actualizado a {progress_value}%'
+                )
+
+            except (ValueError, InvalidOperation):
+                messages.error(request, 'Valor de porcentaje inválido')
+        else:
+            messages.error(request, 'Porcentaje no proporcionado')
+
+    except Exception as e:
+        messages.error(request, f'Error al actualizar progreso: {str(e)}')
+
     return redirect('projects:detail', pk=project_pk)

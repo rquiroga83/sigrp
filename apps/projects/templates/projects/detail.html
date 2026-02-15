@@ -50,11 +50,8 @@
                     <a href="{% url 'projects:manage_allocations' project.pk %}" class="btn btn-primary me-2">
                         <i class="bi bi-calendar-check me-2"></i>Gestionar Asignaciones
                     </a>
-                    <a href="{% url 'projects:assign_resources' project.pk %}" class="btn btn-outline-success me-2">
+                    <a href="{% url 'projects:assign_resources' project.pk %}" class="btn btn-outline-success">
                         <i class="bi bi-people me-2"></i>Asignar a Tareas
-                    </a>
-                    <a href="/admin/projects/project/{{ project.pk }}/change/" class="btn btn-outline-primary">
-                        <i class="bi bi-pencil me-2"></i>Editar
                     </a>
                 </div>
             </div>
@@ -242,7 +239,7 @@
                                                     {% else %}
                                                         <span class="badge bg-secondary">{{ task.get_status_display }}</span>
                                                     {% endif %}
-                                                    <button class="btn btn-sm btn-outline-primary ms-2 change-status-btn" 
+                                                    <button class="btn btn-sm btn-outline-primary ms-2 change-status-btn"
                                                             data-task-id="{{ task.pk }}"
                                                             data-task-title="{{ task.title }}"
                                                             data-task-status="{{ task.status }}"
@@ -250,10 +247,32 @@
                                                             title="Cambiar estado">
                                                         <i class="bi bi-arrow-repeat me-1"></i>Cambiar Estado
                                                     </button>
+
+                                                    {% if task.status == 'in_progress' %}
+                                                    <!-- Control editable de progreso para tareas en progreso -->
+                                                    <div class="mt-2">
+                                                        <form method="post" action="{% url 'projects:update_task_progress' project.pk task.pk %}" class="d-inline-flex align-items-center" style="gap: 0.3rem;">
+                                                            {% csrf_token %}
+                                                            <small>Avance:</small>
+                                                            <input type="number" name="progress" class="form-control form-control-sm"
+                                                                   style="width: 60px;" min="0" max="100" step="5"
+                                                                   value="{{ task.completion_percentage|floatformat:0 }}">
+                                                            <small>%</small>
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Actualizar avance">
+                                                                <i class="bi bi-check2"></i>
+                                                            </button>
+                                                        </form>
+                                                        <div class="small text-muted mt-1">
+                                                            ({{ task.logged_hours }}/{{ task.estimated_hours }}h registradas)
+                                                        </div>
+                                                    </div>
+                                                    {% else %}
+                                                    <!-- Vista de solo lectura para otras tareas -->
                                                     <div class="small mt-1">
-                                                        {{ task.completion_percentage|floatformat:0 }}% 
+                                                        {{ task.completion_percentage|floatformat:0 }}%
                                                         ({{ task.logged_hours }}/{{ task.estimated_hours }}h)
                                                     </div>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -328,12 +347,30 @@
                                     </td>
                                     <td class="text-end">{{ task.estimated_hours }}h / {{ task.logged_hours }}h</td>
                                     <td class="text-end">
+                                        {% if task.status == 'in_progress' %}
+                                        <!-- Control editable para tareas en progreso -->
+                                        <div class="d-flex align-items-center justify-content-end">
+                                            <form method="post" action="{% url 'projects:update_task_progress' project.pk task.pk %}" class="d-flex align-items-center" style="gap: 0.5rem;">
+                                                {% csrf_token %}
+                                                <input type="number" name="progress" class="form-control form-control-sm"
+                                                       style="width: 70px;" min="0" max="100" step="5"
+                                                       value="{{ task.completion_percentage|floatformat:0 }}"
+                                                       placeholder="0">
+                                                <span>%</span>
+                                                <button type="submit" class="btn btn-sm btn-primary" title="Actualizar avance">
+                                                    <i class="bi bi-check"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% else %}
+                                        <!-- Barra de progreso para tareas no en progreso -->
                                         <div class="progress" style="height: 20px; min-width: 60px;">
-                                            <div class="progress-bar" 
+                                            <div class="progress-bar"
                                                  style="width: {{ task.completion_percentage }}%">
                                                 {{ task.completion_percentage|floatformat:0 }}%
                                             </div>
                                         </div>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endif %}
